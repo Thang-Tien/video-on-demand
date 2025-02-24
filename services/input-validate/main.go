@@ -1,0 +1,90 @@
+package main
+
+import (
+	"errors"
+	"log"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
+)
+
+var (
+	ErrEventWorkflowTriggerNotDefined = errors.New("event.workflowTrigger is not defined")
+)
+
+// InputValidateEvent represents the input event structure
+type InputValidateEvent struct {
+	Records         []events.S3EventRecord `json:"Records"`
+	GUID            string                 `json:"guid"`
+	WorkflowTrigger string                 `json:"workflowTrigger"`
+}
+
+type InputValidateData struct {
+	GUID                   string `json:"guid"`
+	StartTime              string `json:"startTime"`
+	WorkflowTrigger        string `json:"workflowTrigger"`
+	WorkflowStatus         string `json:"workflowStatus"`
+	WorkflowName           string `json:"workflowName"`
+	SrcBucket              string `json:"srcBucket"`
+	DestBucket             string `json:"destBucket"`
+	CloudFront             string `json:"cloudFront"`
+	FrameCapture           bool   `json:"frameCapture"`
+	ArchiveSource          bool `json:"archiveSource"`
+	JobTemplate2160p       string `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string `json:"jobTemplate_1080p"`
+	JobTemplate720p        string `json:"jobTemplate_720p"`
+	InputRotate            string `json:"inputRotate"`
+	AcceleratedTranscoding string `json:"acceleratedTranscoding"`
+	EnableSns              bool   `json:"enableSns"`
+	EnableSqs              bool   `json:"enableSqs"`
+	SrcVideo               string `json:"srcVideo"`
+	EnableMediaPackage     bool   `json:"enableMediaPackage"`
+}
+
+func Handler(event InputValidateEvent) (*InputValidateData, error) {
+	log.Printf("REQUEST:: %v", event)
+
+	frameCapture := os.Getenv("FrameCapture") == "true"
+	enableSns := os.Getenv("EnableSns") == "true"
+	enableSqs := os.Getenv("EnableSqs") == "true"
+	enableMediaPackage := os.Getenv("EnableMediaPackage") == "true"
+	ArchiveSource := os.Getenv("ArchiveSource") == "true"
+
+	inputValidateData := InputValidateData{
+		GUID:                   event.GUID,
+		StartTime:              time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		WorkflowTrigger:        event.WorkflowTrigger,
+		WorkflowStatus:         "Ingest",
+		WorkflowName:           os.Getenv("WorkflowName"),
+		SrcBucket:              os.Getenv("Source"),
+		DestBucket:             os.Getenv("Destination"),
+		CloudFront:             os.Getenv("CloudFront"),
+		FrameCapture:           frameCapture,
+		ArchiveSource:          ArchiveSource,
+		JobTemplate2160p:       os.Getenv("JMediaConvert_Template_2160p"),
+		JobTemplate1080p:       os.Getenv("MediaConvert_Template_1080p"),
+		JobTemplate720p:        os.Getenv("MediaConvert_Template_720p"),
+		InputRotate:            os.Getenv("InputRotate"),
+		AcceleratedTranscoding: os.Getenv("AcceleratedTranscoding"),
+		EnableSns:              enableSns,
+		EnableSqs:              enableSqs,
+		EnableMediaPackage:     enableMediaPackage,
+	}
+
+	switch event.WorkflowTrigger {
+	case "Video":
+		inputValidateData.SrcVideo = strings.Replace(event.Records[0].S3.Object.Key, "+", " ", -1)
+	default:
+		return nil, ErrEventWorkflowTriggerNotDefined
+	}
+
+	return &inputValidateData, nil
+
+}
+
+func main() {
+	lambda.Start(Handler)
+}
