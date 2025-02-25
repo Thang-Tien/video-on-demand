@@ -32,7 +32,7 @@ type InputValidateData struct {
 	DestBucket             string `json:"destBucket"`
 	CloudFront             string `json:"cloudFront"`
 	FrameCapture           bool   `json:"frameCapture"`
-	ArchiveSource          bool `json:"archiveSource"`
+	ArchiveSource          bool   `json:"archiveSource"`
 	JobTemplate2160p       string `json:"jobTemplate_2160p"`
 	JobTemplate1080p       string `json:"jobTemplate_1080p"`
 	JobTemplate720p        string `json:"jobTemplate_720p"`
