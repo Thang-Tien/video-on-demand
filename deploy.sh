@@ -5,7 +5,7 @@ set -e
 AWS_REGION=$(aws configure get region || echo "ap-southeast-2")
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-BASE_DIR="vod/services"
+BASE_DIR="services"
 
 # Discover all service directories
 cd $(dirname "$0")
@@ -42,7 +42,7 @@ for SERVICE in $SERVICE_DIRS; do
     continue
   fi
   
-  docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+  docker buildx build --platform linux/amd64 --provenance=false -t $ECR_REPOSITORY:$IMAGE_TAG .
   
   # Tag the image for ECR
   FULL_IMAGE_NAME="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
@@ -58,6 +58,18 @@ for SERVICE in $SERVICE_DIRS; do
   
   echo "Deployment completed for $FUNCTION_NAME"
   echo "------------------------------------"
+
+  # Update counters for progress tracking
+  PROCESSED_COUNT=$((PROCESSED_COUNT+1))
+  REMAINING_COUNT=$((TOTAL_COUNT-PROCESSED_COUNT))
+  
+  echo "Progress: $PROCESSED_COUNT/$TOTAL_COUNT services processed"
+  
+  if [ $REMAINING_COUNT -gt 0 ]; then
+    REMAINING_SERVICES=$(echo "$SERVICE_DIRS" | grep -v "^$SERVICE$" | sed -n "1,${REMAINING_COUNT}p" | paste -sd "," -)
+    echo "Remaining services ($REMAINING_COUNT): $REMAINING_SERVICES"
+  fi
+
 done
 
 echo "All Lambda functions have been built and deployed successfully!"
