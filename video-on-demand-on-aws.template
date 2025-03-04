@@ -1294,7 +1294,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/custom-resource:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-custom-resource:latest"
         },
         "PackageType": "Image",
         "Description": "Used to deploy resources not supported by CloudFormation",
@@ -2061,7 +2061,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/error-handler:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-error-handler:latest"
         },
         "PackageType": "Image",
         "Description": "Captures and processes workflow errors",
@@ -2360,7 +2360,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/input-validate:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-input-validate:latest"
         },
         "PackageType": "Image",
         "Description": "Validates the input given to the workflow",
@@ -2890,7 +2890,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/dynamo-update:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-dynamo:latest"
         },
         "PackageType": "Image",
         "Description": "Updates DynamoDB with event data",
@@ -3087,7 +3087,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/profiler:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-profiler:latest"
         },
         "Description": "Sets an EncodeProfile based on mediainfo output",
         "Environment": {
@@ -3312,7 +3312,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/encode:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-encode:latest"
         },
         "PackageType": "Image",
         "Description": "Creates a MediaConvert encode job",
@@ -3528,7 +3528,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/output-validate:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-output-validate:latest"
         },
         "PackageType": "Image",
         "Description": "Parses MediaConvert job output",
@@ -3739,7 +3739,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/archive-source:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-archive-source:latest"
         },
         "PackageType":"Image",
         "Description": "Updates tags on source files to enable Glacier",
@@ -3938,7 +3938,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/sqs-send-message:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-sqs-publish:latest"
         },
         "PackageType": "Image",
         "Description": "Publish the workflow results to an SQS queue",
@@ -4137,7 +4137,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/sns-notification:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-sns-notification:latest"
         },
         "PackageType": "Image",
         "Description": "Sends a notification when the encode job is completed",
@@ -4350,7 +4350,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/media-package-assets:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-media-package-assets:latest"
         },
         "PackageType": "Image",
         "Description": "Ingests an asset into MediaPackage-VOD",
@@ -4630,7 +4630,7 @@
       "Type": "AWS::Lambda::Function",
       "Properties": {
         "Code": {
-          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/step-functions:latest"
+          "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-step-functions:latest"
         },
         "PackageType": "Image",
         "Description": "Creates a unique identifer (GUID) and executes the Ingest StateMachine",
