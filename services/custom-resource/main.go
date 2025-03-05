@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/mediaconvert"
 	"github.com/aws/aws-sdk-go/service/mediapackagevod"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/google/uuid"
 )
 
 type CustomResourceResponse struct {
@@ -67,6 +68,9 @@ func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error
 			if err != nil {
 				return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: CreateTemplates: %w", err)
 			}
+		case "UUID":
+			uuid := uuid.New().String()
+			responseData.UUID = &uuid
 		case "AnonymizedMetric":
 			sendAnonymizedMetricValue, ok := config["SendAnonymizedMetric"]
 			if !ok {
