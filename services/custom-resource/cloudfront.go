@@ -159,8 +159,8 @@ func (c *CloudFrontHelper) AddCustomOrigin(distributionId, domainName string) er
 		}
 	}
 
-	log.Printf("Origins:: %s", config.Origins.Items)
-	log.Printf("Cache behaviors:: %s", config.CacheBehaviors.Items)
+	log.Printf("Origins:: %#v", config.Origins.Items)
+	log.Printf("Cache behaviors:: %#v", config.CacheBehaviors.Items)
 
 	return nil
 }

@@ -199,7 +199,7 @@ func (m *MediaConvertCustomResource) CreateTemplates(config map[string]interface
 	for _, template := range mediaPackageTemplatesNoPreset {
 		templateJSON, err := os.ReadFile(template.File)
 		if err != nil {
-			fmt.Printf("MediaConvertCustomResource.CreateTemplates: ReadFile: Error reading template file %s: %v\n", template.File, err)
+			log.Printf("MediaConvertCustomResource.CreateTemplates: ReadFile: Error reading template file %s: %v\n", template.File, err)
 			continue
 		}
 
@@ -224,7 +224,7 @@ func (m *MediaConvertCustomResource) CreateTemplates(config map[string]interface
 	for _, template := range qvbrTemplatesNoPreset {
 		templateJSON, err := os.ReadFile(template.File)
 		if err != nil {
-			fmt.Printf("MediaConvertCustomResource.CreateTemplates: ReadFile: Error reading template file %s: %v\n", template.File, err)
+			log.Printf("MediaConvertCustomResource.CreateTemplates: ReadFile: Error reading template file %s: %v\n", template.File, err)
 			continue
 		}
 

@@ -33,7 +33,7 @@ type Handler struct {
 }
 
 func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error) {
-	log.Printf("REQUEST:: %v", event)
+	log.Printf("REQUEST:: %#v", event)
 
 	config := event.ResourceProperties
 	responseData := CustomResourceResponse{}
@@ -117,7 +117,7 @@ func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error
 		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: Send: %w", err)
 	}
 
-	log.Printf("RESPONSE:: %v", responseData)
+	log.Printf("RESPONSE:: %#v", responseData)
 	log.Printf("CFN STATUS:: %d", *res)
 
 	return &responseData, nil
