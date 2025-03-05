@@ -170,14 +170,15 @@ type MediaConvertClient interface {
 }
 
 func (m *MediaConvertCustomResource) GetEndpoint() (*string, error) {
-	res, err := m.MediaConvertClient.DescribeEndpoints(&mediaconvert.DescribeEndpointsInput{
-		MaxResults: aws.Int64(1),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("MediaConvertCustomResource.GetEndpoint: DescribeEndpoints: %w", err)
-	}
+	// res, err := m.MediaConvertClient.DescribeEndpoints(&mediaconvert.DescribeEndpointsInput{
+	// 	MaxResults: aws.Int64(1),
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("MediaConvertCustomResource.GetEndpoint: DescribeEndpoints: %w", err)
+	// }
 
-	return res.Endpoints[0].Url, nil
+	// return res.Endpoints[0].Url, nil
+	return aws.String("https://ap-southeast-2.mediaconvert.amazonaws.com"), nil
 }
 
 type MediaConvertConfig struct {
