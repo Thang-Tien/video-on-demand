@@ -30,7 +30,7 @@ type CfnCustomResource struct {
 	CfnClient CfnClient
 }
 
-func (c *CfnCustomResource) Send(event cfn.Event, responesStatus string, responseData CustomResourceResponse) (*int, error) {
+func (c *CfnCustomResource) Send(event cfn.Event, responseStatus string, responseData CustomResourceResponse) (*int, error) {
 	// Convert CustomResourceResponse to map[string]string
 	responseMap := make(map[string]string)
 	if responseData.GroupId != nil {
@@ -46,7 +46,7 @@ func (c *CfnCustomResource) Send(event cfn.Event, responesStatus string, respons
 		responseMap["UUID"] = *responseData.UUID
 	}
 	body := CfnResponseBody{
-		Status:             responesStatus,
+		Status:             responseStatus,
 		Reason:             "See the details in CloudWatch Log Stream: " + lambdacontext.LogStreamName,
 		PhysicalResourceId: event.LogicalResourceID,
 		StackId:            event.StackID,
@@ -58,23 +58,20 @@ func (c *CfnCustomResource) Send(event cfn.Event, responesStatus string, respons
 	// Convert the response body to JSON
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("CfnCustomResource.Send: Marshal: %w", err)
 	}
-	// Create a buffer with the JSON body
-	bodyReader := bytes.NewBuffer(jsonBody)
 
-	req, err := http.NewRequest("PUT", event.ResponseURL, io.NopCloser(bodyReader))
+	req, err := http.NewRequest("PUT", event.ResponseURL, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, err
 	}
 
 	// Set the headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(jsonBody)))
 
 	resp, err := c.CfnClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("CfnCustomResource.Send: Do: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -83,14 +80,14 @@ func (c *CfnCustomResource) Send(event cfn.Event, responesStatus string, respons
 	if err != nil {
 		return nil, fmt.Errorf("CfnCustomResource.Send: ReadAll: failed to read response body: %v", err)
 	}
-	log.Printf("Response Body: %s\n", string(respBodyBytes))
+	log.Printf("CfnCustomResource.Send: Response Body: %s\n", string(respBodyBytes))
 
 	// Re-create the reader for the body since we've consumed it
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBodyBytes))
 
 	// Check response status
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("CfnCustomResource.Send: Do: failed to send cfn response: %d", resp.StatusCode)
+		return nil, fmt.Errorf("CfnCustomResource.Send: Do: failed to send cfn response: %d, response body: %s", resp.StatusCode, string(respBodyBytes))
 	}
 
 	return &resp.StatusCode, nil
