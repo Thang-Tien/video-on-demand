@@ -3089,6 +3089,7 @@
         "Code": {
           "ImageUri": "430118855551.dkr.ecr.ap-southeast-2.amazonaws.com/vod-profiler:latest"
         },
+        "PackageType": "Image",
         "Description": "Sets an EncodeProfile based on mediainfo output",
         "Environment": {
           "Variables": {
