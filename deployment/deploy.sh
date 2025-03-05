@@ -99,7 +99,9 @@ for SERVICE in ${SERVICE_ARRAY[@]}; do
   # Go back to the original directory
   cd - > /dev/null
   
-  echo "Deployment completed for $FUNCTION_NAME"
+  # Get the current time
+  DEPLOY_TIME=$(date "+%Y-%m-%d %H:%M:%S")
+  echo "Deployment completed for $FUNCTION_NAME at $DEPLOY_TIME"
   echo "------------------------------------"
 done
 
