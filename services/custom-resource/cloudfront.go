@@ -82,6 +82,7 @@ func (c *CloudFrontHelper) AddCustomOrigin(distributionId, domainName string) er
 				Quantity: aws.Int64(1),
 			},
 			OriginKeepaliveTimeout: aws.Int64(5),
+			OriginReadTimeout: 	aws.Int64(30),
 		},
 	}
 
