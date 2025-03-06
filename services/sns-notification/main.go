@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -90,8 +91,12 @@ type Message struct {
 }
 
 func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOutput, error) {
-	log.Printf("REQUEST:: %v", event)
-	
+	eventJSON, err := json.MarshalIndent(event, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("sns-notification: main.Handler: MarshalIndent: %w", err)
+	}
+	log.Printf("REQUEST:: %s", eventJSON)
+
 	var message Message
 	subject := "Workflow Status:: " + event.WorkflowStatus + ":: " + event.GUID
 
@@ -107,11 +112,15 @@ func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOut
 		return nil, ErrWorkflowStatusNotDefined
 	}
 
-	log.Printf("SEND SNS:: %v", message)
+	messageJson, err := json.MarshalIndent(message, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("sns-notification: main.Handler: MarshalIndent: %w", err)
+	}
+	log.Printf("SEND SNS:: %s", messageJson)
 
 	messageBytes, err := json.Marshal(message)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sns-notification: main.Handler: Marshal: %w", err)
 	}
 	messageString := string(messageBytes)
 
@@ -121,7 +130,7 @@ func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOut
 		TopicArn: aws.String(os.Getenv("SnsTopic")),
 	})
 	if err != nil {
-		return nil, err
+		return nil,  fmt.Errorf("sns-notification: main.Handler: Publish: %w", err)
 	}
 
 	return &SNSNotificationOutput{
