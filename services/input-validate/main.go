@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -32,7 +34,7 @@ type InputValidateData struct {
 	DestBucket             string `json:"destBucket"`
 	CloudFront             string `json:"cloudFront"`
 	FrameCapture           bool   `json:"frameCapture"`
-	ArchiveSource          bool   `json:"archiveSource"`
+	ArchiveSource          string `json:"archiveSource"`
 	JobTemplate2160p       string `json:"jobTemplate_2160p"`
 	JobTemplate1080p       string `json:"jobTemplate_1080p"`
 	JobTemplate720p        string `json:"jobTemplate_720p"`
@@ -45,13 +47,18 @@ type InputValidateData struct {
 }
 
 func Handler(event InputValidateEvent) (*InputValidateData, error) {
-	log.Printf("REQUEST:: %v", event)
+	log.Printf("newest version")
+
+	eventJson, err := json.MarshalIndent(event, "", " ")
+	if err != nil {
+		return nil, fmt.Errorf("input-validate: main.Handler: MarshalIndent: %w", err)
+	}
+	log.Printf("REQUEST:: %s", eventJson)
 
 	frameCapture := os.Getenv("FrameCapture") == "true"
 	enableSns := os.Getenv("EnableSns") == "true"
 	enableSqs := os.Getenv("EnableSqs") == "true"
 	enableMediaPackage := os.Getenv("EnableMediaPackage") == "true"
-	ArchiveSource := os.Getenv("ArchiveSource") == "true"
 
 	inputValidateData := InputValidateData{
 		GUID:                   event.GUID,
@@ -63,7 +70,7 @@ func Handler(event InputValidateEvent) (*InputValidateData, error) {
 		DestBucket:             os.Getenv("Destination"),
 		CloudFront:             os.Getenv("CloudFront"),
 		FrameCapture:           frameCapture,
-		ArchiveSource:          ArchiveSource,
+		ArchiveSource:          os.Getenv("ArchiveSource"),
 		JobTemplate2160p:       os.Getenv("JMediaConvert_Template_2160p"),
 		JobTemplate1080p:       os.Getenv("MediaConvert_Template_1080p"),
 		JobTemplate720p:        os.Getenv("MediaConvert_Template_720p"),
@@ -78,7 +85,7 @@ func Handler(event InputValidateEvent) (*InputValidateData, error) {
 	case "Video":
 		inputValidateData.SrcVideo = strings.Replace(event.Records[0].S3.Object.Key, "+", " ", -1)
 	default:
-		return nil, ErrEventWorkflowTriggerNotDefined
+		return nil, fmt.Errorf("input-validate: main.Handler: %w", ErrEventWorkflowTriggerNotDefined)
 	}
 
 	return &inputValidateData, nil

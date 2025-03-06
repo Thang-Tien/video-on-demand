@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -57,7 +58,7 @@ func TestHandler(t *testing.T) {
 				DestBucket:             "destination-bucket",
 				CloudFront:             "cloudfront-url",
 				FrameCapture:           true,
-				ArchiveSource:          true,
+				ArchiveSource:          "true",
 				JobTemplate2160p:       "template-2160p",
 				JobTemplate1080p:       "template-1080p",
 				JobTemplate720p:        "template-720p",
@@ -75,7 +76,7 @@ func TestHandler(t *testing.T) {
 				GUID:            "1234",
 				WorkflowTrigger: "InvalidTrigger",
 			},
-			expectedError: ErrEventWorkflowTriggerNotDefined,
+			expectedError: fmt.Errorf("input-validate: main.Handler: %w", ErrEventWorkflowTriggerNotDefined),
 			expectedData:  nil,
 		},
 	}
