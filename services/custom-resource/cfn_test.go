@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -52,7 +53,7 @@ func TestCfn(t *testing.T) {
 		cfnClientMock := new(CfnClientMock)
 		cfnClientMock.On("Do", mock.Anything).Return(&http.Response{
 			StatusCode: 200,
-			Body:       io.NopCloser(nil),
+			Body:       io.NopCloser(bytes.NewBufferString(`{"one": "two"}`)),
 		}, nil)
 
 		cfnCustomResource := &CfnCustomResource{
@@ -79,8 +80,8 @@ func TestCfn(t *testing.T) {
 		if err == nil {
 			t.Errorf("expect error, but got nil")
 		}
-		if err.Error() != "connection timeout" {
-			t.Errorf("expect error message \"connection timeout\", got %v", err.Error())
+		if err.Error() != "CfnCustomResource.Send: Do: connection timeout" {
+			t.Errorf("expect error message \"CfnCustomResource.Send: Do: connection timeout\", got %v", err.Error())
 		}
 
 	})

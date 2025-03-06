@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -82,7 +83,7 @@ func (c *CloudFrontHelper) AddCustomOrigin(distributionId, domainName string) er
 				Quantity: aws.Int64(1),
 			},
 			OriginKeepaliveTimeout: aws.Int64(5),
-			OriginReadTimeout: 	aws.Int64(30),
+			OriginReadTimeout:      aws.Int64(30),
 		},
 	}
 
@@ -160,8 +161,16 @@ func (c *CloudFrontHelper) AddCustomOrigin(distributionId, domainName string) er
 		}
 	}
 
-	log.Printf("Origins:: %#v", config.Origins.Items)
-	log.Printf("Cache behaviors:: %#v", config.CacheBehaviors.Items)
+	originItemJson, err := json.MarshalIndent(config.Origins.Items, "", " ")
+	if err != nil {
+		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.MarshalIndent: %w", err)
+	}
+	cacheBehaviorJson, err := json.MarshalIndent(config.CacheBehaviors.Items, "", " ")
+	if err != nil {
+		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.MarshalIndent: %w", err)
+	}
+	log.Printf("Origins:: %s", originItemJson)
+	log.Printf("Cache behaviors:: %s", cacheBehaviorJson)
 
 	return nil
 }

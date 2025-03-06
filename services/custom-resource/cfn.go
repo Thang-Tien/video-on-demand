@@ -80,12 +80,24 @@ func (c *CfnCustomResource) Send(event cfn.Event, responseStatus string, respons
 	if err != nil {
 		return nil, fmt.Errorf("CfnCustomResource.Send: ReadAll: failed to read response body: %v", err)
 	}
-	log.Printf("CfnCustomResource.Send: Response Body: %s\n", string(respBodyBytes))
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, respBodyBytes, "", "  "); err != nil {
+			log.Printf("Failed to pretty-print JSON: %v", err)
+			log.Printf("Response body: %s", respBodyBytes)
+		} else {
+			log.Printf("Response body:\n%s", prettyJSON.String())
+		}
+	} else if contentType == "text/html" {
+		log.Printf("Response body:\n%s", respBodyBytes)
+	} else {
+		log.Printf("Response body: %s", respBodyBytes)
+	}
 
-	// Re-create the reader for the body since we've consumed it
+	// Recreate the response body
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBodyBytes))
 
-	// Check response status
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("CfnCustomResource.Send: Do: failed to send cfn response: %d, response body: %s", resp.StatusCode, string(respBodyBytes))
 	}

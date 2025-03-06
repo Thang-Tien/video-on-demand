@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -33,7 +34,12 @@ type Handler struct {
 }
 
 func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error) {
-	log.Printf("REQUEST:: %#v", event)
+	eventJson, err := json.MarshalIndent(event, "", "")
+	if err != nil {
+		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.MarshalIndent: %w", err)
+	}
+
+	log.Printf("REQUEST:: %s", eventJson)
 
 	config := event.ResourceProperties
 	responseData := CustomResourceResponse{}
@@ -117,7 +123,11 @@ func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error
 		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: Send: %w", err)
 	}
 
-	log.Printf("RESPONSE:: %#v", responseData)
+	responseDataJson, err := json.MarshalIndent(responseData, "", " ")
+	if err != nil {
+		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.MarshalIndent: %w", err)
+	}
+	log.Printf("RESPONSE:: %s", responseDataJson)
 	log.Printf("CFN STATUS:: %d", *res)
 
 	return &responseData, nil
@@ -128,7 +138,7 @@ func main() {
 		Region: aws.String(os.Getenv("AWS_REGION")),
 	})
 	if err != nil {
-		log.Fatalf("failed to create session: %v", err)
+		log.Fatalf("main.Handler: failed to create session: %v", err)
 	}
 
 	mediaPackageClient := mediapackagevod.New(sess)
@@ -150,6 +160,7 @@ func main() {
 	}
 	mediaConvertCustomResource := MediaConvertCustomResource{
 		MediaConvertClient: mediaconvertClient,
+		S3Client:           s3Client,
 	}
 	cfnCustomResource := CfnCustomResource{
 		CfnClient: cfnClient,
