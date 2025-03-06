@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -66,9 +68,12 @@ type DynamoOutput struct {
 	SrcMediainfo           string `json:"srcMediainfo"`
 }
 
-
 func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
-	log.Printf("REQUEST:: %v", event)
+	eventJson, err := json.MarshalIndent(event, "", " ")
+	if err != nil {
+		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: MarshalIndent: %w", err)
+	}
+	log.Printf("REQUEST:: %s", eventJson)
 
 	expression := ""
 	values := map[string]*dynamodb.AttributeValue{}
@@ -81,10 +86,32 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 		}
 
 		expression += typeOfEvent.Field(i).Name + " = :" + strconv.Itoa(i) + ", "
-		values[":"+strconv.Itoa(i)] = &dynamodb.AttributeValue{
-			S: aws.String(v.Field(i).String()),
+		fieldValue := v.Field(i)
+		attributeValue := &dynamodb.AttributeValue{}
+		
+		// Handle different field types
+		switch fieldValue.Kind() {
+		case reflect.Bool:
+			attributeValue.BOOL = aws.Bool(fieldValue.Bool())
+		case reflect.String:
+			attributeValue.S = aws.String(fieldValue.String())
+		default:
+			// Convert other types to string representation
+			attributeValue.S = aws.String(fmt.Sprintf("%v", fieldValue.Interface()))
 		}
+		
+		values[":"+strconv.Itoa(i)] = attributeValue
 	}
+	// Remove the trailing comma and space from the expression string
+	if len(expression) > 2 {
+		expression = "SET " + expression[:len(expression)-2]
+	} else {
+		expression = "SET "
+	}
+
+	log.Printf("expression:: %s", expression)
+	valuesJson, _ := json.MarshalIndent(values, "", " ")
+	log.Printf("values:: %s", valuesJson)
 
 	input := dynamodb.UpdateItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
@@ -97,9 +124,9 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 		ExpressionAttributeValues: values,
 	}
 
-	_, err := h.DynamoDBClient.UpdateItem(&input)
+	_, err = h.DynamoDBClient.UpdateItem(&input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: UpdateItem: %w", err)
 	}
 
 	log.Println("UPDATE:: Successfully updated item in DynamoDB")
