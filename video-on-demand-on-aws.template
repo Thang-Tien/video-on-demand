@@ -1256,6 +1256,26 @@
                   ]
                 ]
               }
+            },
+            {
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":s3:::",
+                    "vod-templates-and-presets",
+                    "/*"
+                  ]
+                ]
+              }
             }
           ],
           "Version": "2012-10-17"
