@@ -19,7 +19,7 @@ var (
 )
 
 type StepFunctionEvent struct {
-	Records                []*events.S3EventRecord `json:"Records"`
+	Records                []events.S3EventRecord `json:"Records"`
 	GUID                   *string                 `json:"guid"`
 	StartTime              *string                 `json:"startTime"`
 	WorkflowTrigger        *string                 `json:"workflowTrigger"`
@@ -51,7 +51,11 @@ type Handler struct {
 }
 
 func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
-	log.Printf("REQUEST:: %v", event)
+	eventJson, err := json.MarshalIndent(event, "", " ")
+	if err != nil {
+		log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
+	}
+	log.Printf("REQUEST:: %s", eventJson)
 
 	var response string
 	var startExecutionInput sfn.StartExecutionInput
@@ -60,10 +64,11 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 	case event.Records != nil:
 		// Ingest workflow triggerd by s3 event::
 		event.GUID = aws.String(uuid.New().String())
+		event.WorkflowTrigger = aws.String("Video")
 
 		inputBytes, err := json.Marshal(event)
 		if err != nil {
-			log.Printf("Error marshalling event: %v", err)
+			log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
 		}
 
 		startExecutionInput = sfn.StartExecutionInput{
@@ -86,10 +91,15 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 
 	data, err := h.StepFunctionClient.StartExecution(&startExecutionInput)
 	if err != nil {
-		log.Printf("Error starting execution: %v", err)
+		log.Printf("step-function: main.Handler: Error starting execution: %v", err)
 	}
 
-	log.Printf("STATEMACHINE EXECUTE:: %v", data)
+
+	dataJson, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Printf("step-function: main.Handler: Error marshalling data: %v", err)
+	}
+	log.Printf("STATEMACHINE EXECUTE:: %s", dataJson)
 
 	return &response, nil
 }

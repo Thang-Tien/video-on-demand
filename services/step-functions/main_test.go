@@ -28,7 +28,7 @@ func TestHandleRequest(t *testing.T) {
 		{
 			name: "should return \"success\" on Ingest Execute success",
 			event: StepFunctionEvent{
-				Records: []*events.S3EventRecord{
+				Records: []events.S3EventRecord{
 					{
 						S3: events.S3Entity{
 							Object: events.S3Object{
