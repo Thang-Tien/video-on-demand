@@ -106,31 +106,12 @@ func GetTestConfigurationWithS3() cloudfront.GetDistributionConfigOutput {
 			},
 			DefaultCacheBehavior: &cloudfront.DefaultCacheBehavior{
 				TargetOriginId: aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.TargetOriginId),
-				ForwardedValues: &cloudfront.ForwardedValues{
-					QueryString: aws.Bool(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.QueryString),
-					Cookies: &cloudfront.CookiePreference{
-						Forward: aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.Cookies.Forward),
-					},
-					Headers: &cloudfront.Headers{
-						Quantity: aws.Int64(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.Headers.Quantity),
-						Items: []*string{
-							aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.Headers.Items[0]),
-							aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.Headers.Items[1]),
-							aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.Headers.Items[2]),
-						},
-					},
-					QueryStringCacheKeys: &cloudfront.QueryStringCacheKeys{
-						Quantity: aws.Int64(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ForwardedValues.QueryStringCacheKeys.Quantity),
-						Items:    []*string{},
-					},
-				},
 				TrustedSigners: &cloudfront.TrustedSigners{
 					Enabled:  aws.Bool(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.TrustedSigners.Enabled),
 					Quantity: aws.Int64(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.TrustedSigners.Quantity),
 					Items:    []*string{},
 				},
 				ViewerProtocolPolicy: aws.String(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.ViewerProtocolPolicy),
-				MinTTL:               aws.Int64(*TestConfigurationWithS3.DistributionConfig.DefaultCacheBehavior.MinTTL),
 			},
 			CacheBehaviors: &cloudfront.CacheBehaviors{
 				Quantity: aws.Int64(*TestConfigurationWithS3.DistributionConfig.CacheBehaviors.Quantity),

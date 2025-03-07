@@ -22,114 +22,114 @@ type Template struct {
 	File string
 }
 
-var qvbrPresets = []Preset{
-	{
-		Name: "_Mp4_Avc_Aac_16x9_1280x720p_4.5Mbps_qvbr",
-		File: "presets/_Mp4_Avc_Aac_16x9_1280x720p_4.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Mp4_Avc_Aac_16x9_1920x1080p_6Mbps_qvbr",
-		File: "presets/_Mp4_Avc_Aac_16x9_1920x1080p_6Mbps_qvbr.json",
-	},
-	{
-		Name: "_Mp4_Hevc_Aac_16x9_3840x2160p_20Mbps_qvbr",
-		File: "presets/_Mp4_Hevc_Aac_16x9_3840x2160p_20Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_6.5Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_6.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_480x270p_0.4Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_480x270p_0.4Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_1920x1080p_8.5Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1920x1080p_8.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_640x360p_0.6Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_640x360p_0.6Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_3.5Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_3.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_640x360p_1.2Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_640x360p_1.2Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_5.0Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_5.0Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Dash_Mp4_Avc_16x9_960x540p_3.5Mbps_qvbr",
-		File: "presets/_Ott_Dash_Mp4_Avc_16x9_960x540p_3.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_3.5Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_3.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_480x270p_0.4Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_480x270p_0.4Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_5.0Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_5.0Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_0.6Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_0.6Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_6.5Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_6.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_1.2Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_1.2Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1920x1080p_8.5Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1920x1080p_8.5Mbps_qvbr.json",
-	},
-	{
-		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_960x540p_3.5Mbps_qvbr",
-		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_960x540p_3.5Mbps_qvbr.json",
-	},
-}
+// var qvbrPresets = []Preset{
+// 	{
+// 		Name: "_Mp4_Avc_Aac_16x9_1280x720p_4.5Mbps_qvbr",
+// 		File: "presets/_Mp4_Avc_Aac_16x9_1280x720p_4.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Mp4_Avc_Aac_16x9_1920x1080p_6Mbps_qvbr",
+// 		File: "presets/_Mp4_Avc_Aac_16x9_1920x1080p_6Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Mp4_Hevc_Aac_16x9_3840x2160p_20Mbps_qvbr",
+// 		File: "presets/_Mp4_Hevc_Aac_16x9_3840x2160p_20Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_6.5Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_6.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_480x270p_0.4Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_480x270p_0.4Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_1920x1080p_8.5Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1920x1080p_8.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_640x360p_0.6Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_640x360p_0.6Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_3.5Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_3.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_640x360p_1.2Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_640x360p_1.2Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_1280x720p_5.0Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_1280x720p_5.0Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Dash_Mp4_Avc_16x9_960x540p_3.5Mbps_qvbr",
+// 		File: "presets/_Ott_Dash_Mp4_Avc_16x9_960x540p_3.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_3.5Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_3.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_480x270p_0.4Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_480x270p_0.4Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_5.0Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_5.0Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_0.6Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_0.6Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_6.5Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1280x720p_6.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_1.2Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_640x360p_1.2Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_1920x1080p_8.5Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_1920x1080p_8.5Mbps_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_Hls_Ts_Avc_Aac_16x9_960x540p_3.5Mbps_qvbr",
+// 		File: "presets/_Ott_Hls_Ts_Avc_Aac_16x9_960x540p_3.5Mbps_qvbr.json",
+// 	},
+// }
 
-var qvbrTemplates = []Template{
-	{
-		Name: "_Ott_2160p_Avc_Aac_16x9_qvbr",
-		File: "templates/2160p_avc_aac_16x9_qvbr.json",
-	},
-	{
-		Name: "_Ott_1080p_Avc_Aac_16x9_qvbr",
-		File: "templates/1080p_avc_aac_16x9_qvbr.json",
-	},
-	{
-		Name: "_Ott_720p_Avc_Aac_16x9_qvbr",
-		File: "templates/720p_avc_aac_16x9_qvbr.json",
-	},
-}
+// var qvbrTemplates = []Template{
+// 	{
+// 		Name: "_Ott_2160p_Avc_Aac_16x9_qvbr",
+// 		File: "templates/2160p_avc_aac_16x9_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_1080p_Avc_Aac_16x9_qvbr",
+// 		File: "templates/1080p_avc_aac_16x9_qvbr.json",
+// 	},
+// 	{
+// 		Name: "_Ott_720p_Avc_Aac_16x9_qvbr",
+// 		File: "templates/720p_avc_aac_16x9_qvbr.json",
+// 	},
+// }
 
-var mediaPackageTemplates = []Template{
-	{
-		Name: "_Ott_2160p_Avc_Aac_16x9_mvod",
-		File: "templates/2160p_avc_aac_16x9_mvod.json",
-	},
-	{
-		Name: "_Ott_1080p_Avc_Aac_16x9_mvod",
-		File: "templates/1080p_avc_aac_16x9_mvod.json",
-	},
-	{
-		Name: "_Ott_720p_Avc_Aac_16x9_mvod",
-		File: "templates/720p_avc_aac_16x9_mvod.json",
-	},
-}
+// var mediaPackageTemplates = []Template{
+// 	{
+// 		Name: "_Ott_2160p_Avc_Aac_16x9_mvod",
+// 		File: "templates/2160p_avc_aac_16x9_mvod.json",
+// 	},
+// 	{
+// 		Name: "_Ott_1080p_Avc_Aac_16x9_mvod",
+// 		File: "templates/1080p_avc_aac_16x9_mvod.json",
+// 	},
+// 	{
+// 		Name: "_Ott_720p_Avc_Aac_16x9_mvod",
+// 		File: "templates/720p_avc_aac_16x9_mvod.json",
+// 	},
+// }
 
 var qvbrTemplatesNoPreset = []Template{
 	{
