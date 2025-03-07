@@ -78,10 +78,14 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 		}
 		response = "success"
 	case event.GUID != nil:
+		inputBytes, err := json.Marshal(event.GUID)
+		if err != nil {
+			log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
+		}
 		// Process workflow trigger
 		startExecutionInput = sfn.StartExecutionInput{
 			Name:            event.GUID,
-			Input:           event.GUID,
+			Input:           aws.String(string(inputBytes)),
 			StateMachineArn: aws.String(os.Getenv("ProcessWorkflow")),
 		}
 		response = "success"
