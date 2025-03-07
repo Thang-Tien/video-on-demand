@@ -1,11 +1,9 @@
 name: Lint
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -24,8 +22,10 @@ jobs:
       - name: Run golangci-lint
         run: |
           for service in services/*; do
-            if [ -d "$service" ]; then
-              echo "Running tests in $service"
+            if [ -d "$service" ] && [ -f "$service/go.mod" ]; then
+              echo "Running linting in $service"
               (cd "$service" && golangci-lint run)
+            elif [ -d "$service" ]; then
+              echo "Skipping linting for $service - no go.mod file found"
             fi
           done
