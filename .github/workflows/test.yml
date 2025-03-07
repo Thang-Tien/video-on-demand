@@ -1,5 +1,4 @@
 name: Go Test Workflow
-
 on:
   push:
     branches:
@@ -7,34 +6,33 @@ on:
   pull_request:
     branches:
       - main
-
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: 1.23.6
-
       - name: Install dependencies for each service
         run: |
           for service in services/*; do
-            if [ -d "$service" ]; then
+            if [ -d "$service" ] && [ -f "$service/go.mod" ]; then
               echo "Installing dependencies in $service"
               (cd "$service" && go mod tidy)
+            elif [ -d "$service" ]; then
+              echo "Skipping $service - no go.mod file found"
             fi
           done
-
       - name: Run tests for each service
         run: |
           for service in services/*; do
-            if [ -d "$service" ]; then
+            if [ -d "$service" ] && [ -f "$service/go.mod" ]; then
               echo "Running tests in $service"
               (cd "$service" && go test -v ./...)
+            elif [ -d "$service" ]; then
+              echo "Skipping tests for $service - no go.mod file found"
             fi
           done
