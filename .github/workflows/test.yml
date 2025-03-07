@@ -1,0 +1,40 @@
+name: Go Test Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.6
+
+      - name: Install dependencies for each service
+        run: |
+          for service in services/*; do
+            if [ -d "$service" ]; then
+              echo "Installing dependencies in $service"
+              (cd "$service" && go mod tidy)
+            fi
+          done
+
+      - name: Run tests for each service
+        run: |
+          for service in services/*; do
+            if [ -d "$service" ]; then
+              echo "Running tests in $service"
+              (cd "$service" && go test -v ./...)
+            fi
+          done
