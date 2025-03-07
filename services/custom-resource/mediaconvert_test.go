@@ -18,13 +18,6 @@ var (
 			Name: aws.String("name"),
 		},
 	}
-	TestDescribeEndpointsOutput = &mediaconvert.DescribeEndpointsOutput{
-		Endpoints: []*mediaconvert.Endpoint{
-			{
-				Url: aws.String("https://test.com"),
-			},
-		},
-	}
 	TestConfig = map[string]interface{}{
 		"StackName":          "test",
 		"EndPoint":           "https://test.com",
