@@ -49,9 +49,9 @@ type InputValidateData struct {
 func Handler(event InputValidateEvent) (*InputValidateData, error) {
 	log.Printf("newest version")
 
-	eventJson, err := json.MarshalIndent(event, "", " ")
+	eventJson, err := json.Marshal(event)
 	if err != nil {
-		return nil, fmt.Errorf("input-validate: main.Handler: MarshalIndent: %w", err)
+		return nil, fmt.Errorf("input-validate: main.Handler: Marshal: %w", err)
 	}
 	log.Printf("REQUEST:: %s", eventJson)
 

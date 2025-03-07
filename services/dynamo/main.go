@@ -69,9 +69,9 @@ type DynamoOutput struct {
 }
 
 func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
-	eventJson, err := json.MarshalIndent(event, "", " ")
+	eventJson, err := json.Marshal(event)
 	if err != nil {
-		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: MarshalIndent: %w", err)
+		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: Marshal: %w", err)
 	}
 	log.Printf("REQUEST:: %s", eventJson)
 
@@ -110,7 +110,7 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 	}
 
 	log.Printf("expression:: %s", expression)
-	valuesJson, _ := json.MarshalIndent(values, "", " ")
+	valuesJson, _ := json.Marshal(values)
 	log.Printf("values:: %s", valuesJson)
 
 	input := dynamodb.UpdateItemInput{

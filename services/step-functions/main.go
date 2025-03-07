@@ -51,7 +51,7 @@ type Handler struct {
 }
 
 func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
-	eventJson, err := json.MarshalIndent(event, "", " ")
+	eventJson, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
 	}
@@ -99,7 +99,7 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 	}
 
 
-	dataJson, err := json.MarshalIndent(data, "", " ")
+	dataJson, err := json.Marshal(data) 
 	if err != nil {
 		log.Printf("step-function: main.Handler: Error marshalling data: %v", err)
 	}

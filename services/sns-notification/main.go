@@ -91,9 +91,9 @@ type Message struct {
 }
 
 func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOutput, error) {
-	eventJSON, err := json.MarshalIndent(event, "", "  ")
+	eventJSON, err := json.Marshal(event)
 	if err != nil {
-		return nil, fmt.Errorf("sns-notification: main.Handler: MarshalIndent: %w", err)
+		return nil, fmt.Errorf("sns-notification: main.Handler: Marshal: %w", err)
 	}
 	log.Printf("REQUEST:: %s", eventJSON)
 
@@ -112,9 +112,9 @@ func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOut
 		return nil, ErrWorkflowStatusNotDefined
 	}
 
-	messageJson, err := json.MarshalIndent(message, "", "  ")
+	messageJson, err := json.Marshal(message)
 	if err != nil {
-		return nil, fmt.Errorf("sns-notification: main.Handler: MarshalIndent: %w", err)
+		return nil, fmt.Errorf("sns-notification: main.Handler: Marshal: %w", err)
 	}
 	log.Printf("SEND SNS:: %s", messageJson)
 

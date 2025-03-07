@@ -34,9 +34,9 @@ type Handler struct {
 }
 
 func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error) {
-	eventJson, err := json.MarshalIndent(event, "", "")
+	eventJson, err := json.Marshal(event)
 	if err != nil {
-		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.MarshalIndent: %w", err)
+		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.Marshal: %w", err)
 	}
 
 	log.Printf("REQUEST:: %s", eventJson)
@@ -123,9 +123,9 @@ func (h *Handler) HandleRequest(event cfn.Event) (*CustomResourceResponse, error
 		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: Send: %w", err)
 	}
 
-	responseDataJson, err := json.MarshalIndent(responseData, "", " ")
+	responseDataJson, err := json.Marshal(responseData)
 	if err != nil {
-		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.MarshalIndent: %w", err)
+		return nil, fmt.Errorf("custom-resource: main.Handler.HandleRequest: json.Marshal: %w", err)
 	}
 	log.Printf("RESPONSE:: %s", responseDataJson)
 	log.Printf("CFN STATUS:: %d", *res)
