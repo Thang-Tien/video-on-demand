@@ -20,26 +20,30 @@ var (
 
 type StepFunctionEvent struct {
 	Records                []events.S3EventRecord `json:"Records"`
-	GUID                   *string                 `json:"guid"`
-	StartTime              *string                 `json:"startTime"`
-	WorkflowTrigger        *string                 `json:"workflowTrigger"`
-	WorkflowStatus         *string                 `json:"workflowStatus"`
-	WorkflowName           *string                 `json:"workflowName"`
-	SrcBucket              *string                 `json:"srcBucket"`
-	DestBucket             *string                 `json:"destBucket"`
-	CloudFront             *string                 `json:"cloudFront"`
-	FrameCapture           *bool                   `json:"frameCapture"`
-	ArchiveSource          *string                 `json:"archiveSource"`
-	JobTemplate2160p       *string                 `json:"jobTemplate_2160p"`
-	JobTemplate1080p       *string                 `json:"jobTemplate_1080p"`
-	JobTemplate720p        *string                 `json:"jobTemplate_720p"`
-	InputRotate            *string                 `json:"inputRotate"`
-	AcceleratedTranscoding *string                 `json:"acceleratedTranscoding"`
-	EnableSns              *bool                   `json:"enableSns"`
-	EnableSqs              *bool                   `json:"enableSqs"`
-	SrcVideo               *string                 `json:"srcVideo"`
-	EnableMediaPackage     *bool                   `json:"enableMediaPackage"`
-	SrcMediainfo           *string                 `json:"srcMediainfo"`
+	GUID                   *string                `json:"guid"`
+	StartTime              *string                `json:"startTime"`
+	WorkflowTrigger        *string                `json:"workflowTrigger"`
+	WorkflowStatus         *string                `json:"workflowStatus"`
+	WorkflowName           *string                `json:"workflowName"`
+	SrcBucket              *string                `json:"srcBucket"`
+	DestBucket             *string                `json:"destBucket"`
+	CloudFront             *string                `json:"cloudFront"`
+	FrameCapture           *bool                  `json:"frameCapture"`
+	ArchiveSource          *string                `json:"archiveSource"`
+	JobTemplate2160p       *string                `json:"jobTemplate_2160p"`
+	JobTemplate1080p       *string                `json:"jobTemplate_1080p"`
+	JobTemplate720p        *string                `json:"jobTemplate_720p"`
+	InputRotate            *string                `json:"inputRotate"`
+	AcceleratedTranscoding *string                `json:"acceleratedTranscoding"`
+	EnableSns              *bool                  `json:"enableSns"`
+	EnableSqs              *bool                  `json:"enableSqs"`
+	SrcVideo               *string                `json:"srcVideo"`
+	EnableMediaPackage     *bool                  `json:"enableMediaPackage"`
+	SrcMediainfo           *string                `json:"srcMediainfo"`
+}
+
+type ProcessWorkflowInput struct {
+	GUID *string `json:"guid"`
 }
 
 type StepFunctionClent interface {
@@ -78,7 +82,9 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 		}
 		response = "success"
 	case event.GUID != nil:
-		inputBytes, err := json.Marshal(event.GUID)
+		inputBytes, err := json.Marshal(ProcessWorkflowInput{
+			GUID: event.GUID,
+		})
 		if err != nil {
 			log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
 		}
@@ -98,8 +104,7 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 		log.Printf("step-function: main.Handler: Error starting execution: %v", err)
 	}
 
-
-	dataJson, err := json.Marshal(data) 
+	dataJson, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("step-function: main.Handler: Error marshalling data: %v", err)
 	}

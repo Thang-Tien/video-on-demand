@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -85,10 +86,15 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 			continue
 		}
 
-		expression += typeOfEvent.Field(i).Name + " = :" + strconv.Itoa(i) + ", "
+		// Get JSON tag name or use lowercase first character of field name
+		fieldName := typeOfEvent.Field(i).Tag.Get("json")
+		if fieldName == "" {
+			fieldName = fmt.Sprintf("%s%s", strings.ToLower(typeOfEvent.Field(i).Name[:1]), typeOfEvent.Field(i).Name[1:])
+		}
+		expression += fieldName + " = :" + strconv.Itoa(i) + ", "
 		fieldValue := v.Field(i)
 		attributeValue := &dynamodb.AttributeValue{}
-		
+
 		// Handle different field types
 		switch fieldValue.Kind() {
 		case reflect.Bool:
@@ -99,7 +105,7 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 			// Convert other types to string representation
 			attributeValue.S = aws.String(fmt.Sprintf("%v", fieldValue.Interface()))
 		}
-		
+
 		values[":"+strconv.Itoa(i)] = attributeValue
 	}
 	// Remove the trailing comma and space from the expression string
