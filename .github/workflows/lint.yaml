@@ -1,4 +1,4 @@
-name: Lint
+name: Go Lint Workflow
 on:
   push:
     branches: [ main ]
