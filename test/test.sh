@@ -3,19 +3,23 @@
 # Define services directory relative to project root
 SERVICES_DIR=$(realpath "$(dirname "$0")/../services")
 SPECIFIC_TESTS=()
+TARGET_SERVICE=""
 
 # Display help information
 show_help() {
-    echo "Usage: $0 [options]"
-    echo "Run tests for all services or specific tests"
+    echo "Usage: $0 [options] [service_name]"
+    echo "Run tests for all services, a specific service, or specific tests"
     echo
     echo "Options:"
     echo "  -h, --help                  Show this help message"
     echo "  -t, --test TEST_NAME        Run specific test(s), can be used multiple times"
     echo "  -v, --verbose               Enable verbose output"
     echo
-    echo "Example:"
-    echo "  $0 -t TestUserCreate -t TestVideoUpload"
+    echo "Examples:"
+    echo "  $0                          Test all services"
+    echo "  $0 profiler                 Test only the profiler service"
+    echo "  $0 -t TestUserCreate        Run specific test across all services"
+    echo "  $0 profiler -t TestUserCreate  Run specific test in profiler service"
 }
 
 # Parse command line arguments
@@ -36,9 +40,14 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            echo "Unknown option: $1"
-            show_help
-            exit 1
+            if [ -z "$TARGET_SERVICE" ]; then
+                TARGET_SERVICE="$1"
+                shift
+            else
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+            fi
             ;;
     esac
 done
@@ -73,6 +82,12 @@ fi
 for service_dir in "$SERVICES_DIR"/*; do
     if [ -d "$service_dir" ] && [ -f "$service_dir/go.mod" ]; then
         SERVICE_NAME=$(basename "$service_dir")
+        
+        # Skip if a target service is specified and this is not it
+        if [ -n "$TARGET_SERVICE" ] && [ "$SERVICE_NAME" != "$TARGET_SERVICE" ]; then
+            continue
+        fi
+        
         echo "----------------------------------------"
         echo "Running tests for service: $SERVICE_NAME"
         echo "----------------------------------------"
@@ -89,6 +104,12 @@ for service_dir in "$SERVICES_DIR"/*; do
         SERVICES_COUNT=$((SERVICES_COUNT+1))
     fi
 done
+
+# Check if we were looking for a specific service but didn't find it
+if [ -n "$TARGET_SERVICE" ] && [ "$SERVICES_COUNT" -eq 0 ]; then
+    echo "Error: Service '$TARGET_SERVICE' not found"
+    exit 1
+fi
 
 echo "----------------------------------------"
 echo "Test Summary"
