@@ -15,7 +15,8 @@ import (
 )
 
 type ProfilerInput struct {
-	GUID string `json:"guid"`
+	GUID        string `json:"guid"`
+	JobTemplate *string `json:"jobTemplate,omitempty"`
 }
 
 type ProfilerOutput struct {
@@ -190,8 +191,19 @@ func (h *Handler) HandleRequest(event ProfilerInput) (*ProfilerOutput, error) {
 		output.FrameCaptureWidth = ratio[encodingProfile]
 	}
 
-	// WIP: add support for custom encoding Templates
-	// ...
+	if event.JobTemplate == nil {
+		jobTemplates := map[int]string{
+			2160: output.JobTemplate2160p,
+			1080: output.JobTemplate1080p,
+			720:  output.JobTemplate720p,
+		}
+		output.JobTemplate = jobTemplates[encodingProfile]
+		log.Printf("Chosen template:: %s", output.JobTemplate)
+		output.IsCustomTemplate = false
+	} else {
+		output.IsCustomTemplate = true
+	}
+	
 
 	outputJson, err := json.Marshal(output)
 	if err != nil {
