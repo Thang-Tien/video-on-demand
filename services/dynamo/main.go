@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -69,9 +70,9 @@ type DynamoOutput struct {
 }
 
 func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
-	eventJson, err := json.MarshalIndent(event, "", " ")
+	eventJson, err := json.Marshal(event)
 	if err != nil {
-		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: MarshalIndent: %w", err)
+		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: Marshal: %w", err)
 	}
 	log.Printf("REQUEST:: %s", eventJson)
 
@@ -85,10 +86,15 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 			continue
 		}
 
-		expression += typeOfEvent.Field(i).Name + " = :" + strconv.Itoa(i) + ", "
+		// Get JSON tag name or use lowercase first character of field name
+		fieldName := typeOfEvent.Field(i).Tag.Get("json")
+		if fieldName == "" {
+			fieldName = fmt.Sprintf("%s%s", strings.ToLower(typeOfEvent.Field(i).Name[:1]), typeOfEvent.Field(i).Name[1:])
+		}
+		expression += fieldName + " = :" + strconv.Itoa(i) + ", "
 		fieldValue := v.Field(i)
 		attributeValue := &dynamodb.AttributeValue{}
-		
+
 		// Handle different field types
 		switch fieldValue.Kind() {
 		case reflect.Bool:
@@ -99,7 +105,7 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 			// Convert other types to string representation
 			attributeValue.S = aws.String(fmt.Sprintf("%v", fieldValue.Interface()))
 		}
-		
+
 		values[":"+strconv.Itoa(i)] = attributeValue
 	}
 	// Remove the trailing comma and space from the expression string
@@ -110,7 +116,7 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 	}
 
 	log.Printf("expression:: %s", expression)
-	valuesJson, _ := json.MarshalIndent(values, "", " ")
+	valuesJson, _ := json.Marshal(values)
 	log.Printf("values:: %s", valuesJson)
 
 	input := dynamodb.UpdateItemInput{

@@ -161,13 +161,13 @@ func (c *CloudFrontHelper) AddCustomOrigin(distributionId, domainName string) er
 		}
 	}
 
-	originItemJson, err := json.MarshalIndent(config.Origins.Items, "", " ")
+	originItemJson, err := json.Marshal(config.Origins.Items)
 	if err != nil {
-		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.MarshalIndent: %w", err)
+		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.Marshal: %w", err)
 	}
-	cacheBehaviorJson, err := json.MarshalIndent(config.CacheBehaviors.Items, "", " ")
+	cacheBehaviorJson, err := json.Marshal(config.CacheBehaviors.Items)
 	if err != nil {
-		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.MarshalIndent: %w", err)
+		return fmt.Errorf("CloudFrontHelper.AddCustomOrigin: json.Marshal: %w", err)
 	}
 	log.Printf("Origins:: %s", originItemJson)
 	log.Printf("Cache behaviors:: %s", cacheBehaviorJson)
