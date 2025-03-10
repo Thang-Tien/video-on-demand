@@ -21,14 +21,14 @@ func (m *StepFunctionClientMock) StartExecution(input *sfn.StartExecutionInput) 
 func TestHandleRequest(t *testing.T) {
 	tests := []struct {
 		name             string
-		event            StepFunctionEvent
+		event            map[string]interface{}
 		expectedResponse *string
 		expectedError    error
 	}{
 		{
 			name: "should return \"success\" on Ingest Execute success",
-			event: StepFunctionEvent{
-				Records: []events.S3EventRecord{
+			event: map[string]interface{}{
+				"Records": []events.S3EventRecord{
 					{
 						S3: events.S3Entity{
 							Object: events.S3Object{
@@ -43,15 +43,28 @@ func TestHandleRequest(t *testing.T) {
 		},
 		{
 			name: "should return \"success\" on Process Execute success",
-			event: StepFunctionEvent{
-				GUID: aws.String("123e4567-e89b-12d3-a456-426614174000"),
+			event: map[string]interface{}{
+				"guid": aws.String("123e4567-e89b-12d3-a456-426614174000"),
+			},
+			expectedResponse: aws.String("success"),
+			expectedError:    nil,
+		},
+		{
+			name: "should return \"success\" on Publish Execute success",
+			event: map[string]interface{}{
+				"detail": map[string]interface{}{
+					"status": "COMPLETE",
+					"jobId":  "1740305088427-714h8k",
+				},
+				"source":      "aws.mediaconvert",
+				"detail-type": "MediaConvert Job State Change",
 			},
 			expectedResponse: aws.String("success"),
 			expectedError:    nil,
 		},
 		{
 			name:             "should return error on invalid event object",
-			event:            StepFunctionEvent{},
+			event:            map[string]interface{}{},
 			expectedResponse: nil,
 			expectedError:    ErrInvalidEventObject,
 		},
