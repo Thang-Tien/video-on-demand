@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"strconv"
-	"strings"
+	"unicode"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/mediaconvert"
 )
 
 type DynamoDBClient interface {
@@ -24,49 +25,53 @@ type Handler struct {
 }
 
 type DynamoEvent struct {
-	GUID                   string `json:"guid"`
-	StartTime              string `json:"startTime"`
-	WorkflowTrigger        string `json:"workflowTrigger"`
-	WorkflowStatus         string `json:"workflowStatus"`
-	WorkflowName           string `json:"workflowName"`
-	SrcBucket              string `json:"srcBucket"`
-	DestBucket             string `json:"destBucket"`
-	CloudFront             string `json:"cloudFront"`
-	FrameCapture           bool   `json:"frameCapture"`
-	ArchiveSource          string `json:"archiveSource"`
-	JobTemplate2160p       string `json:"jobTemplate_2160p"`
-	JobTemplate1080p       string `json:"jobTemplate_1080p"`
-	JobTemplate720p        string `json:"jobTemplate_720p"`
-	InputRotate            string `json:"inputRotate"`
-	AcceleratedTranscoding string `json:"acceleratedTranscoding"`
-	EnableSns              bool   `json:"enableSns"`
-	EnableSqs              bool   `json:"enableSqs"`
-	SrcVideo               string `json:"srcVideo"`
-	EnableMediaPackage     bool   `json:"enableMediaPackage"`
-	SrcMediainfo           string `json:"srcMediainfo"`
+	GUID                   string                       `json:"guid"`
+	StartTime              string                       `json:"startTime"`
+	WorkflowTrigger        string                       `json:"workflowTrigger"`
+	WorkflowStatus         string                       `json:"workflowStatus"`
+	WorkflowName           string                       `json:"workflowName"`
+	SrcBucket              string                       `json:"srcBucket"`
+	DestBucket             string                       `json:"destBucket"`
+	CloudFront             string                       `json:"cloudFront"`
+	FrameCapture           bool                         `json:"frameCapture"`
+	ArchiveSource          string                       `json:"archiveSource"`
+	JobTemplate2160p       string                       `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string                       `json:"jobTemplate_1080p"`
+	JobTemplate720p        string                       `json:"jobTemplate_720p"`
+	InputRotate            string                       `json:"inputRotate"`
+	AcceleratedTranscoding string                       `json:"acceleratedTranscoding"`
+	EnableSns              bool                         `json:"enableSns"`
+	EnableSqs              bool                         `json:"enableSqs"`
+	SrcVideo               string                       `json:"srcVideo"`
+	EnableMediaPackage     bool                         `json:"enableMediaPackage"`
+	SrcMediainfo           string                       `json:"srcMediainfo"`
+	EncodingJob            *mediaconvert.CreateJobInput `json:"encodingJob,omitempty"`
+	EncodeJobId            *string                      `json:"encodeJobId,omitempty"`
 }
 
 type DynamoOutput struct {
-	GUID                   string `json:"guid"`
-	StartTime              string `json:"startTime"`
-	WorkflowTrigger        string `json:"workflowTrigger"`
-	WorkflowStatus         string `json:"workflowStatus"`
-	WorkflowName           string `json:"workflowName"`
-	SrcBucket              string `json:"srcBucket"`
-	DestBucket             string `json:"destBucket"`
-	CloudFront             string `json:"cloudFront"`
-	FrameCapture           bool   `json:"frameCapture"`
-	ArchiveSource          string `json:"archiveSource"`
-	JobTemplate2160p       string `json:"jobTemplate_2160p"`
-	JobTemplate1080p       string `json:"jobTemplate_1080p"`
-	JobTemplate720p        string `json:"jobTemplate_720p"`
-	InputRotate            string `json:"inputRotate"`
-	AcceleratedTranscoding string `json:"acceleratedTranscoding"`
-	EnableSns              bool   `json:"enableSns"`
-	EnableSqs              bool   `json:"enableSqs"`
-	SrcVideo               string `json:"srcVideo"`
-	EnableMediaPackage     bool   `json:"enableMediaPackage"`
-	SrcMediainfo           string `json:"srcMediainfo"`
+	GUID                   string                       `json:"guid"`
+	StartTime              string                       `json:"startTime"`
+	WorkflowTrigger        string                       `json:"workflowTrigger"`
+	WorkflowStatus         string                       `json:"workflowStatus"`
+	WorkflowName           string                       `json:"workflowName"`
+	SrcBucket              string                       `json:"srcBucket"`
+	DestBucket             string                       `json:"destBucket"`
+	CloudFront             string                       `json:"cloudFront"`
+	FrameCapture           bool                         `json:"frameCapture"`
+	ArchiveSource          string                       `json:"archiveSource"`
+	JobTemplate2160p       string                       `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string                       `json:"jobTemplate_1080p"`
+	JobTemplate720p        string                       `json:"jobTemplate_720p"`
+	InputRotate            string                       `json:"inputRotate"`
+	AcceleratedTranscoding string                       `json:"acceleratedTranscoding"`
+	EnableSns              bool                         `json:"enableSns"`
+	EnableSqs              bool                         `json:"enableSqs"`
+	SrcVideo               string                       `json:"srcVideo"`
+	EnableMediaPackage     bool                         `json:"enableMediaPackage"`
+	SrcMediainfo           string                       `json:"srcMediainfo"`
+	EncodingJob            *mediaconvert.CreateJobInput `json:"encodingJob,omitempty"`
+	EncodeJobId            *string                      `json:"encodeJobId,omitempty"`
 }
 
 func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
@@ -76,47 +81,33 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 	}
 	log.Printf("REQUEST:: %s", eventJson)
 
-	expression := ""
-	values := map[string]*dynamodb.AttributeValue{}
-	v := reflect.ValueOf(event)
-	typeOfEvent := v.Type()
+	// Update the item in DynamoDB
 
-	for i := range v.NumField() {
-		if typeOfEvent.Field(i).Name == "GUID" {
-			continue
-		}
-
-		// Get JSON tag name or use lowercase first character of field name
-		fieldName := typeOfEvent.Field(i).Tag.Get("json")
-		if fieldName == "" {
-			fieldName = fmt.Sprintf("%s%s", strings.ToLower(typeOfEvent.Field(i).Name[:1]), typeOfEvent.Field(i).Name[1:])
-		}
-		expression += fieldName + " = :" + strconv.Itoa(i) + ", "
-		fieldValue := v.Field(i)
-		attributeValue := &dynamodb.AttributeValue{}
-
-		// Handle different field types
-		switch fieldValue.Kind() {
-		case reflect.Bool:
-			attributeValue.BOOL = aws.Bool(fieldValue.Bool())
-		case reflect.String:
-			attributeValue.S = aws.String(fieldValue.String())
-		default:
-			// Convert other types to string representation
-			attributeValue.S = aws.String(fmt.Sprintf("%v", fieldValue.Interface()))
-		}
-
-		values[":"+strconv.Itoa(i)] = attributeValue
+	values, err := dynamodbattribute.MarshalMap(event)
+	if err != nil {
+		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: MarshalMap: %w", err)
 	}
-	// Remove the trailing comma and space from the expression string
+
+	delete(values, "guid")
+
+	expression := "SET "
+	attributeValues := make(map[string]*dynamodb.AttributeValue)
+	valuesWithNumberKey := make(map[string]*dynamodb.AttributeValue)
+	counter := 1
+	for key, value := range values {
+		placeholder := fmt.Sprintf(":%d", counter)
+		key = string(unicode.ToLower(rune(key[0]))) + key[1:]
+		expression += fmt.Sprintf("%s = %s, ", key, placeholder)
+		attributeValues[placeholder] = value
+		valuesWithNumberKey[":"+strconv.Itoa(counter)] = value
+		counter++
+	}
 	if len(expression) > 2 {
-		expression = "SET " + expression[:len(expression)-2]
-	} else {
-		expression = "SET "
+		expression = expression[:len(expression)-2]
 	}
 
 	log.Printf("expression:: %s", expression)
-	valuesJson, _ := json.Marshal(values)
+	valuesJson, _ := json.Marshal(valuesWithNumberKey)
 	log.Printf("values:: %s", valuesJson)
 
 	input := dynamodb.UpdateItemInput{
@@ -127,7 +118,7 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 			},
 		},
 		UpdateExpression:          aws.String(expression),
-		ExpressionAttributeValues: values,
+		ExpressionAttributeValues: valuesWithNumberKey,
 	}
 
 	_, err = h.DynamoDBClient.UpdateItem(&input)
@@ -158,6 +149,8 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 		SrcVideo:               event.SrcVideo,
 		EnableMediaPackage:     event.EnableMediaPackage,
 		SrcMediainfo:           event.SrcMediainfo,
+		EncodingJob:            event.EncodingJob,
+		EncodeJobId:            event.EncodeJobId,
 	}
 
 	return output, nil
