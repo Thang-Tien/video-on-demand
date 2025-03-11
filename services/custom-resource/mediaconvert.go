@@ -237,7 +237,7 @@ func (m *MediaConvertCustomResource) CreateTemplates(config map[string]interface
 		}
 		input.Name = aws.String(mediaConvertConfig.StackName + template.Name)
 		input.Tags = map[string]*string{
-			"SolutionId": aws.String("SO0021"),
+			"SolutionId": aws.String("vod-solution"),
 		}
 
 		_, err = m.MediaConvertClient.CreateJobTemplate(input)
@@ -262,7 +262,7 @@ func (m *MediaConvertCustomResource) CreateTemplates(config map[string]interface
 		}
 		input.Name = aws.String(mediaConvertConfig.StackName + template.Name)
 		input.Tags = map[string]*string{
-			"SolutionId": aws.String("SO0021"),
+			"SolutionId": aws.String("vod-solution"),
 		}
 
 		_, err = m.MediaConvertClient.CreateJobTemplate(input)
