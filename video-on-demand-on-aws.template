@@ -1,5 +1,5 @@
 {
-  "Description": "(SO0021) - Video on Demand on AWS workflow with AWS Step Functions, MediaConvert, MediaPackage, S3, CloudFront and DynamoDB. Version v6.1.10",
+  "Description": "Video on Demand on AWS workflow with AWS Step Functions, MediaConvert, MediaPackage, S3, CloudFront and DynamoDB.",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -395,7 +395,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "VersioningConfiguration": {
@@ -640,7 +640,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "VersioningConfiguration": {
@@ -761,7 +761,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "VersioningConfiguration": {
@@ -989,7 +989,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1039,7 +1039,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1320,7 +1320,7 @@
         "Description": "Used to deploy resources not supported by CloudFormation",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10"
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1"
           }
         },
         "FunctionName": {
@@ -1343,7 +1343,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 30
@@ -1490,7 +1490,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1621,7 +1621,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1721,7 +1721,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1763,7 +1763,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "VisibilityTimeout": 120
@@ -1838,7 +1838,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "VisibilityTimeout": 120
@@ -1936,7 +1936,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -1975,7 +1975,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -2087,7 +2087,7 @@
         "Description": "Captures and processes workflow errors",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "DynamoDBTable": {
               "Ref": "DynamoDBTable59784FC0"
@@ -2117,7 +2117,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -2268,7 +2268,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -2386,7 +2386,7 @@
         "Description": "Validates the input given to the workflow",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -2547,7 +2547,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -2601,7 +2601,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -2721,7 +2721,7 @@
         "Description": "Runs mediainfo on a pre-signed S3 URL",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "ErrorHandler": {
               "Fn::GetAtt": [
                 "ErrorHandlerLambdaFC10367C",
@@ -2752,7 +2752,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -2806,7 +2806,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -2916,7 +2916,7 @@
         "Description": "Updates DynamoDB with event data",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -2949,7 +2949,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -3003,7 +3003,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -3113,7 +3113,7 @@
         "Description": "Sets an EncodeProfile based on mediainfo output",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -3146,7 +3146,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -3200,7 +3200,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -3339,7 +3339,7 @@
         "Description": "Creates a MediaConvert encode job",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -3381,7 +3381,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -3435,7 +3435,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -3555,7 +3555,7 @@
         "Description": "Parses MediaConvert job output",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -3594,7 +3594,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -3648,7 +3648,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -3766,7 +3766,7 @@
         "Description": "Updates tags on source files to enable Glacier",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -3796,7 +3796,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -3850,7 +3850,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -3965,7 +3965,7 @@
         "Description": "Publish the workflow results to an SQS queue",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -3998,7 +3998,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -4052,7 +4052,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -4164,7 +4164,7 @@
         "Description": "Sends a notification when the encode job is completed",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -4197,7 +4197,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -4251,7 +4251,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -4377,7 +4377,7 @@
         "Description": "Ingests an asset into MediaPackage-VOD",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "ErrorHandler": {
               "Fn::GetAtt": [
@@ -4425,7 +4425,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -4479,7 +4479,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -4657,7 +4657,7 @@
         "Description": "Creates a unique identifer (GUID) and executes the Ingest StateMachine",
         "Environment": {
           "Variables": {
-            "SOLUTION_IDENTIFIER": "AwsSolution/SO0021/v6.1.10",
+            "SOLUTION_IDENTIFIER": "AwsSolution/vod-solution/v1",
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
             "IngestWorkflow": {
               "Fn::Join": [
@@ -4759,7 +4759,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ],
         "Timeout": 120
@@ -4978,7 +4978,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -5440,7 +5440,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -5518,7 +5518,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -5624,7 +5624,7 @@
         "Tags": [
           {
             "Key": "SolutionId",
-            "Value": "SO0021"
+            "Value": "vod-solution"
           }
         ]
       },
@@ -5677,14 +5677,14 @@
           ]
         },
         "Resource": "AnonymizedMetric",
-        "SolutionId": "SO0021",
+        "SolutionId": "vod-solution",
         "UUID": {
           "Fn::GetAtt": [
             "UUID",
             "UUID"
           ]
         },
-        "Version": "v6.1.10",
+        "Version": "v1",
         "Transcoder": "MediaConvert",
         "WorkflowTrigger": {
           "Ref": "WorkflowTrigger"
@@ -5717,8 +5717,8 @@
       "Properties": {
         "Attributes": {
           "applicationType": "AWS-Solutions",
-          "version": "v6.1.10",
-          "solutionID": "SO0021",
+          "version": "v1",
+          "solutionID": "vod-solution",
           "solutionName": "Video on Demand on AWS"
         },
         "Description": "Attribute group for solution information",
@@ -5738,7 +5738,7 @@
           ]
         },
         "Tags": {
-          "SolutionId": "SO0021"
+          "SolutionId": "vod-solution"
         }
       },
       "Metadata": {
@@ -5768,7 +5768,7 @@
     "AppRegistryApp5349BE86": {
       "Type": "AWS::ServiceCatalogAppRegistry::Application",
       "Properties": {
-        "Description": "Service Catalog application to track and manage all your resources. The SolutionId is SO0021 and SolutionVersion is v6.1.10.",
+        "Description": "Service Catalog application to track and manage all your resources. The SolutionId is vod-solution and SolutionVersion is v1.",
         "Name": {
           "Fn::Join": [
             "",
@@ -5789,11 +5789,11 @@
           ]
         },
         "Tags": {
-          "SolutionId": "SO0021",
+          "SolutionId": "vod-solution",
           "Solutions:ApplicationType": "AWS-Solutions",
-          "Solutions:SolutionID": "SO0021",
+          "Solutions:SolutionID": "vod-solution",
           "Solutions:SolutionName": "Video on Demand on AWS",
-          "Solutions:SolutionVersion": "v6.1.10"
+          "Solutions:SolutionVersion": "v1"
         }
       },
       "Metadata": {
