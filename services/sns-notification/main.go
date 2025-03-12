@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -59,6 +60,13 @@ type SNSNotificationEvent struct {
 	SrcVideo               string `json:"srcVideo"`
 	EnableMediaPackage     bool   `json:"enableMediaPackage"`
 	SrcMediainfo           string `json:"srcMediainfo"`
+
+	EncodeJobId            string            `json:"encodeJobId"`
+	EndTime                time.Time         `json:"endTime"`
+	ThumbNails             []*string         `json:"thumbNails"`
+	ThumbNailsUrls         []*string         `json:"thumbNailsUrls"`
+	MediaPackageResourceId string            `json:"mediaPackageResourceId"`
+	EgressEndpoints        map[string]string `json:"egressEndpoints"`
 }
 
 type SNSNotificationOutput struct {
@@ -90,6 +98,35 @@ type Message struct {
 	SrcVideo string `json:"srcVideo"`
 }
 
+type CompleteMessage struct {
+	GUID                   string `json:"guid"`
+	StartTime              string `json:"startTime"`
+	WorkflowTrigger        string `json:"workflowTrigger"`
+	WorkflowStatus         string `json:"workflowStatus"`
+	WorkflowName           string `json:"workflowName"`
+	SrcBucket              string `json:"srcBucket"`
+	DestBucket             string `json:"destBucket"`
+	CloudFront             string `json:"cloudFront"`
+	FrameCapture           bool   `json:"frameCapture"`
+	ArchiveSource          string `json:"archiveSource"`
+	JobTemplate2160p       string `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string `json:"jobTemplate_1080p"`
+	JobTemplate720p        string `json:"jobTemplate_720p"`
+	InputRotate            string `json:"inputRotate"`
+	AcceleratedTranscoding string `json:"acceleratedTranscoding"`
+	EnableSns              bool   `json:"enableSns"`
+	EnableSqs              bool   `json:"enableSqs"`
+	SrcVideo               string `json:"srcVideo"`
+	EnableMediaPackage     bool   `json:"enableMediaPackage"`
+
+	EncodeJobId            string            `json:"encodeJobId"`
+	EndTime                time.Time         `json:"endTime"`
+	ThumbNails             []*string         `json:"thumbNails"`
+	ThumbNailsUrls         []*string         `json:"thumbNailsUrls"`
+	MediaPackageResourceId string            `json:"mediaPackageResourceId"`
+	EgressEndpoints        map[string]string `json:"egressEndpoints"`
+}
+
 func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOutput, error) {
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
@@ -97,11 +134,38 @@ func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOut
 	}
 	log.Printf("REQUEST:: %s", eventJSON)
 
-	var message Message
+	var message interface{}
 	subject := "Workflow Status:: " + event.WorkflowStatus + ":: " + event.GUID
 
 	if event.WorkflowStatus == "Complete" {
-		// WIP - Delete some fields of the event
+		message = CompleteMessage{
+			GUID:                   event.GUID,
+			StartTime:              event.StartTime,
+			WorkflowTrigger:        event.WorkflowTrigger,
+			WorkflowStatus:         event.WorkflowStatus,
+			WorkflowName:           event.WorkflowName,
+			SrcBucket:              event.SrcBucket,
+			DestBucket:             event.DestBucket,
+			CloudFront:             event.CloudFront,
+			FrameCapture:           event.FrameCapture,
+			ArchiveSource:          event.ArchiveSource,
+			JobTemplate2160p:       event.JobTemplate2160p,
+			JobTemplate1080p:       event.JobTemplate1080p,
+			JobTemplate720p:        event.JobTemplate720p,
+			InputRotate:            event.InputRotate,
+			AcceleratedTranscoding: event.AcceleratedTranscoding,
+			EnableSns:              event.EnableSns,
+			EnableSqs:              event.EnableSqs,
+			SrcVideo:               event.SrcVideo,
+			EnableMediaPackage:     event.EnableMediaPackage,
+			EncodeJobId:            event.EncodeJobId,
+			EndTime:                event.EndTime,
+			ThumbNails:             event.ThumbNails,
+			ThumbNailsUrls:         event.ThumbNailsUrls,
+			MediaPackageResourceId: event.MediaPackageResourceId,
+			EgressEndpoints:        event.EgressEndpoints,
+		}
+
 	} else if event.WorkflowStatus == "Ingest" {
 		message = Message{
 			Status:   event.WorkflowStatus,
@@ -112,25 +176,19 @@ func (h *Handler) HandleRequest(event SNSNotificationEvent) (*SNSNotificationOut
 		return nil, ErrWorkflowStatusNotDefined
 	}
 
-	messageJson, err := json.Marshal(message)
+	messageJson, err := json.MarshalIndent(message, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("sns-notification: main.Handler: Marshal: %w", err)
 	}
-	log.Printf("SEND SNS:: %s", messageJson)
-
-	messageBytes, err := json.Marshal(message)
-	if err != nil {
-		return nil, fmt.Errorf("sns-notification: main.Handler: Marshal: %w", err)
-	}
-	messageString := string(messageBytes)
+	log.Printf("MESSAGE:: %s", messageJson)
 
 	_, err = h.snsClient.Publish(&sns.PublishInput{
-		Message:  aws.String(messageString),
-		Subject:  aws.String(subject),
-		TopicArn: aws.String(os.Getenv("SnsTopic")),
+		Message:          aws.String(string(messageJson)),
+		Subject:          aws.String(subject),
+		TopicArn:         aws.String(os.Getenv("SnsTopic")),
 	})
 	if err != nil {
-		return nil,  fmt.Errorf("sns-notification: main.Handler: Publish: %w", err)
+		return nil, fmt.Errorf("sns-notification: main.Handler: Publish: %w", err)
 	}
 
 	return &SNSNotificationOutput{
