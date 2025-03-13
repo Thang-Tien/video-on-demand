@@ -137,7 +137,7 @@ func (h *Handler) HanleRequest(event MediaPackageAssetsEvent) (*MediaPackageAsse
 		PackagingGroupId: aws.String(os.Getenv("GroupId")),
 		SourceArn:        aws.String(arn),
 		SourceRoleArn:    aws.String(os.Getenv("MediaPackageVodRole")),
-		ResourceId:       aws.String(os.Getenv(randomId)),
+		ResourceId:       aws.String(randomId),
 	}
 	input.Tags = map[string]*string{
 		"SolutionId": aws.String("vod-solution"),

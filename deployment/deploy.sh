@@ -5,7 +5,7 @@ set -e
 AWS_REGION=$(aws configure get region || echo "ap-southeast-2")
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-STACK_NAME="video-on-demand-test-deploy-8"
+STACK_NAME="vod5"
 BASE_DIR="../services"
 
 # Display usage information
