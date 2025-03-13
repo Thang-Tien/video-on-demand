@@ -2714,7 +2714,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": {
-            "Fn::Sub": "vod-lambda-deployment"
+            "Fn::Sub": "vod-lambda-deployment-for-mediainfo"
           },
           "S3Key": "media-info-lambda.zip"
         },
