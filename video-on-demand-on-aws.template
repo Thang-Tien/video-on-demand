@@ -1271,7 +1271,7 @@
                       "Ref": "AWS::Partition"
                     },
                     ":s3:::",
-                    "vod-templates-and-presets",
+                    "vod-templates-and-presets-2",
                     "/*"
                   ]
                 ]
