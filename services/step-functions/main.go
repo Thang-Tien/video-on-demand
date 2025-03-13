@@ -54,12 +54,43 @@ type Handler struct {
 	StepFunctionClient StepFunctionClent
 }
 
-func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
-	eventJson, err := json.Marshal(event)
-	if err != nil {
-		log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
+func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, error) {
+
+	var event StepFunctionEvent
+	var eventBridgeEvent events.EventBridgeEvent
+	if source, ok := generalEvent["source"]; ok && source == "aws.mediaconvert" {
+		eventBridgeBytes, err := json.Marshal(generalEvent)
+		if err != nil {
+			log.Printf("step-function: main.Handler: Error marshalling general event: %v", err)
+			return nil, err
+		}
+
+		if err := json.Unmarshal(eventBridgeBytes, &eventBridgeEvent); err != nil {
+			log.Printf("step-function: main.Handler: Error unmarshalling to EventBridgeEvent: %v", err)
+			return nil, err
+		}
+
+		log.Printf("Received EventBridge event")
+		log.Printf("REQUEST:: %s", eventBridgeBytes)
 	}
-	log.Printf("REQUEST:: %s", eventJson)
+
+	_, okRecord := generalEvent["Records"]
+	_, okGuid := generalEvent["guid"]
+	if okRecord || okGuid {
+		eventBytes, err := json.Marshal(generalEvent)
+		if err != nil {
+			log.Printf("step-function: main.Handler: Error marshalling general event: %v", err)
+			return nil, err
+		}
+
+		if err := json.Unmarshal(eventBytes, &event); err != nil {
+			log.Printf("step-function: main.Handler: Error unmarshalling to StepFunctionEvent: %v", err)
+			return nil, err
+		}
+
+		log.Printf("Received StepFunction event")
+		log.Printf("REQUEST:: %s", eventBytes)
+	}
 
 	var response string
 	var startExecutionInput sfn.StartExecutionInput
@@ -93,6 +124,18 @@ func (h *Handler) HandleRequest(event StepFunctionEvent) (*string, error) {
 			Name:            event.GUID,
 			Input:           aws.String(string(inputBytes)),
 			StateMachineArn: aws.String(os.Getenv("ProcessWorkflow")),
+		}
+		response = "success"
+	case eventBridgeEvent.Detail != nil:
+		eventBridgeBytes, err := json.Marshal(eventBridgeEvent)
+		if err != nil {
+			log.Printf("step-function: main.Handler: Error marshalling eventBridge: %v", err)
+		}
+
+		startExecutionInput = sfn.StartExecutionInput{
+			Name:            event.GUID,
+			Input:           aws.String(string(eventBridgeBytes)),
+			StateMachineArn: aws.String(os.Getenv("PublishWorkflow")),
 		}
 		response = "success"
 	default:

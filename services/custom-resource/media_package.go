@@ -129,7 +129,7 @@ func (m *MediaPackageCustomResource) Create(properties map[string]interface{}) (
 	packagingGroup, err := m.MediaPackageVODClient.CreatePackagingGroup(&mediapackagevod.CreatePackagingGroupInput{
 		Id: aws.String(mediaPackageConfig.GroupId),
 		Tags: map[string]*string{
-			"SolutionId": aws.String("SO0021"),
+			"SolutionId": aws.String("vod-solution"),
 		},
 	})
 	if err != nil {
