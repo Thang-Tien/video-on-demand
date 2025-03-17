@@ -197,7 +197,7 @@ type MediaConvertConfig struct {
 
 func (m *MediaConvertCustomResource) GetTemplateFromS3(path string) ([]byte, error) {
 	s3Input := &s3.GetObjectInput{
-		Bucket: aws.String("vod-templates-and-presets"),
+		Bucket: aws.String("vod-templates-and-presets-2"),
 		Key:    aws.String(path),
 	}
 
