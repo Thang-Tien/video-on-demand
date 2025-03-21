@@ -5,16 +5,16 @@ set -e
 AWS_REGION=$(aws configure get region || echo "ap-southeast-2")
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-STACK_NAME="vod5"
+STACK_NAME="video-on-demand-test-deploy-8"
 BASE_DIR="../services"
 
 # Display usage information
 usage() {
-  echo "Usage: $0 [--build-only|--update-only] [service1 service2 ...]"
+  echo "Usage: $0 [--build-only|--update-only] [service1 service1/subservice ...]"
   echo "  --build-only     Only build and push Docker images"
   echo "  --update-only    Only update Lambda functions"
   echo "  If neither flag is provided, both operations will be performed"
-  echo "  If no services are specified, all services will be processed"
+  echo "  If no services are specified, all services (including nested) will be processed"
   echo "  Otherwise, only the specified services will be processed"
   exit 1
 }
@@ -46,28 +46,47 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Discover all service directories
+# Discover all service directories (including nested ones)
 cd $(dirname "$0")
-ALL_SERVICE_DIRS=$(find ${BASE_DIR} -maxdepth 1 -mindepth 1 -type d -printf "%f\n")
+ALL_SERVICE_PATHS=()
+
+# Function to find all service directories with Dockerfiles
+find_service_dirs() {
+  while IFS= read -r dir; do
+    # Get relative path from BASE_DIR
+    rel_path=${dir#$BASE_DIR/}
+    if [[ -f "$dir/Dockerfile" ]]; then
+      ALL_SERVICE_PATHS+=("$rel_path")
+    fi
+  done < <(find "$BASE_DIR" -type f -name "Dockerfile" -exec dirname {} \;)
+}
+
+find_service_dirs
 
 # Determine which services to process
 if [ ${#SERVICES[@]} -gt 0 ]; then
   # Validate that specified services exist
+  SERVICE_PATHS=()
   for SERVICE in "${SERVICES[@]}"; do
-    if [ ! -d "${BASE_DIR}/${SERVICE}" ]; then
+    SERVICE_PATH="${BASE_DIR}/${SERVICE}"
+    if [ ! -d "$SERVICE_PATH" ]; then
       echo "Error: Service '${SERVICE}' not found in ${BASE_DIR}/"
       usage
     fi
+    if [ ! -f "${SERVICE_PATH}/Dockerfile" ]; then
+      echo "Error: No Dockerfile found for '${SERVICE}'"
+      usage
+    fi
+    SERVICE_PATHS+=("$SERVICE")
   done
-  SERVICE_DIRS=("${SERVICES[@]}")
   echo "Processing specific services: ${SERVICES[*]}"
 else
-  readarray -t SERVICE_DIRS <<< "$ALL_SERVICE_DIRS"
+  SERVICE_PATHS=("${ALL_SERVICE_PATHS[@]}")
   echo "Processing all services"
 fi
 
 # Initialize counters for progress tracking
-TOTAL_COUNT=${#SERVICE_DIRS[@]}
+TOTAL_COUNT=${#SERVICE_PATHS[@]}
 PROCESSED_COUNT=0
 
 # Log in to ECR if we're building images
@@ -77,10 +96,11 @@ if [ "$BUILD_IMAGES" = true ]; then
 fi
 
 # Process each service directory
-for SERVICE in "${SERVICE_DIRS[@]}"; do
-  # Construct the function name based on directory name
-  FUNCTION_NAME="vod-${SERVICE}"
-  SERVICE_PATH="${BASE_DIR}/${SERVICE}"
+for SERVICE_PATH in "${SERVICE_PATHS[@]}"; do
+  # Convert service path to function name (replace / with -)
+  SERVICE_NAME=$(echo "$SERVICE_PATH" | tr '/' '-')
+  FUNCTION_NAME="vod-${SERVICE_NAME}"
+  FULL_SERVICE_PATH="${BASE_DIR}/${SERVICE_PATH}"
   ECR_REPOSITORY="${FUNCTION_NAME}"
   IMAGE_TAG="latest"
   FULL_IMAGE_NAME="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
@@ -93,24 +113,17 @@ for SERVICE in "${SERVICE_DIRS[@]}"; do
   
   if [ $REMAINING_COUNT -gt 0 ]; then
     # Get remaining services
-    REMAINING_SERVICES=$(printf "%s," "${SERVICE_DIRS[@]:$PROCESSED_COUNT}")
+    REMAINING_SERVICES=$(printf "%s," "${SERVICE_PATHS[@]:$PROCESSED_COUNT}")
     REMAINING_SERVICES=${REMAINING_SERVICES%,}  # Remove trailing comma
     echo -e "\033[1;33mRemaining services ($REMAINING_COUNT): $REMAINING_SERVICES\033[0m"
   fi
   
-  echo "Processing service: $SERVICE"
+  echo "Processing service: $SERVICE_PATH"
   
   # Build and push Docker images if --build-only or no flag
   if [ "$BUILD_IMAGES" = true ]; then
     echo "Building Docker image for $FUNCTION_NAME..."
-    cd $SERVICE_PATH
-    
-    # Check if Dockerfile exists
-    if [ ! -f "Dockerfile" ]; then
-      echo "Warning: No Dockerfile found in $SERVICE_PATH, skipping build..."
-      cd - > /dev/null
-      continue
-    fi
+    cd "$FULL_SERVICE_PATH"
     
     # Check if repository exists, create if it doesn't
     if ! aws ecr describe-repositories --repository-names $ECR_REPOSITORY --region $AWS_REGION &> /dev/null; then
@@ -139,7 +152,7 @@ for SERVICE in "${SERVICE_DIRS[@]}"; do
   
   # Update Lambda functions if --update-only or no flag
   if [ "$UPDATE_LAMBDAS" = true ]; then
-    LAMBDA_FUNCTION_NAME="${STACK_NAME}-${SERVICE}"
+    LAMBDA_FUNCTION_NAME="${STACK_NAME}-${SERVICE_NAME}"
     echo "Updating Lambda function: $LAMBDA_FUNCTION_NAME..."
     
     # Check if Lambda function exists

@@ -200,8 +200,11 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 	input := dynamodb.UpdateItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Key: map[string]*dynamodb.AttributeValue{
-			"guid": {
-				S: aws.String(event.GUID),
+			"PK": {
+				S: aws.String("VIDEO#"+ event.GUID),
+			},
+			"SK": {
+				S: aws.String("METADATA"),
 			},
 		},
 		UpdateExpression:          aws.String(expression),
