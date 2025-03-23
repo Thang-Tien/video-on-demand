@@ -132,8 +132,11 @@ func (h *Handler) HandleRequest(event events.EventBridgeEvent) (*DynamoData, err
 	data, err := h.DynamoDBClient.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Key: map[string]*dynamodb.AttributeValue{
-			"guid": {
-				S: aws.String(eventDetail.UserMetadata.GUID),
+			"PK": {
+				S: aws.String("VIDEO#"+ eventDetail.UserMetadata.GUID),
+			},
+			"SK": {
+				S: aws.String("METADATA"),
 			},
 		},
 	})

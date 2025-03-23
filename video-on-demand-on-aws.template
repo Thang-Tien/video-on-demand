@@ -1890,11 +1890,11 @@
       "Properties": {
         "AttributeDefinitions": [
           {
-            "AttributeName": "guid",
+            "AttributeName": "PK",
             "AttributeType": "S"
           },
           {
-            "AttributeName": "srcBucket",
+            "AttributeName": "SK",
             "AttributeType": "S"
           },
           {
@@ -1905,10 +1905,10 @@
         "BillingMode": "PAY_PER_REQUEST",
         "GlobalSecondaryIndexes": [
           {
-            "IndexName": "srcBucket-startTime-index",
+            "IndexName": "SK-startTime-index",
             "KeySchema": [
               {
-                "AttributeName": "srcBucket",
+                "AttributeName": "SK",
                 "KeyType": "HASH"
               },
               {
@@ -1923,7 +1923,7 @@
         ],
         "KeySchema": [
           {
-            "AttributeName": "guid",
+            "AttributeName": "PK",
             "KeyType": "HASH"
           }
         ],
@@ -3762,7 +3762,7 @@
         "Code": {
           "ImageUri": "906592634899.dkr.ecr.ap-southeast-1.amazonaws.com/vod-archive-source:latest"
         },
-        "PackageType":"Image",
+        "PackageType": "Image",
         "Description": "Updates tags on source files to enable Glacier",
         "Environment": {
           "Variables": {
