@@ -15,7 +15,7 @@ import (
 )
 
 type ProfilerInput struct {
-	GUID        string `json:"guid"`
+	GUID        string  `json:"guid"`
 	JobTemplate *string `json:"jobTemplate,omitempty"`
 }
 
@@ -104,8 +104,11 @@ func (h *Handler) HandleRequest(event ProfilerInput) (*ProfilerOutput, error) {
 	data, err := h.DynamoDBClient.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Key: map[string]*dynamodb.AttributeValue{
-			"guid": {
-				S: aws.String(event.GUID),
+			"PK": {
+				S: aws.String("VIDEO#" + event.GUID),
+			},
+			"SK": {
+				S: aws.String("METADATA"),
 			},
 		},
 	})
@@ -203,7 +206,6 @@ func (h *Handler) HandleRequest(event ProfilerInput) (*ProfilerOutput, error) {
 	} else {
 		output.IsCustomTemplate = true
 	}
-	
 
 	outputJson, err := json.Marshal(output)
 	if err != nil {

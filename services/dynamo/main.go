@@ -175,8 +175,6 @@ func (h *Handler) HandleRequest(event DynamoEvent) (*DynamoOutput, error) {
 		return nil, fmt.Errorf("dynamo: main.Handler.HandleRequest: MarshalMap: %w", err)
 	}
 
-	delete(values, "guid")
-
 	expression := "SET "
 	attributeValues := make(map[string]*dynamodb.AttributeValue)
 	valuesWithNumberKey := make(map[string]*dynamodb.AttributeValue)
