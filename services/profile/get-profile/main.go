@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -21,6 +22,9 @@ type Handler struct {
 }
 
 func (h *Handler) GetProfile(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	requestJSON, _ := json.Marshal(request)
+	log.Printf("Request: %s", requestJSON)
+
 	// Extract the access token from the Authorization header
 	accessToken := ""
 	if authHeader, ok := request.Headers["Authorization"]; ok {

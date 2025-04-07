@@ -58,6 +58,8 @@ func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, e
 
 	var event StepFunctionEvent
 	var eventBridgeEvent events.EventBridgeEvent
+
+	// check if the event is from EventBridge
 	if source, ok := generalEvent["source"]; ok && source == "aws.mediaconvert" {
 		eventBridgeBytes, err := json.Marshal(generalEvent)
 		if err != nil {
