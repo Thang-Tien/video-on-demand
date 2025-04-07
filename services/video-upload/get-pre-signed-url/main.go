@@ -25,8 +25,8 @@ type GetPresignedURLHandler struct {
 }
 
 type Response struct {
-	UploadURL string `json:"uploadUrl"`
-	ExpiresIn int64  `json:"expiresIn"`
+	UploadURL string    `json:"uploadUrl"`
+	ExpiresIn time.Time `json:"expiresIn"`
 }
 
 func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -93,7 +93,7 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	// Construct the response
 	response := Response{
 		UploadURL: presignedReq.URL,
-		ExpiresIn: time.Now().Add(15 * time.Minute).Unix(),
+		ExpiresIn: time.Now().Add(15 * time.Minute),
 	}
 	responseJSON, err := json.Marshal(response)
 	if err != nil {
