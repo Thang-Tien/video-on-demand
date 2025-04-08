@@ -152,7 +152,8 @@ for SERVICE_PATH in "${SERVICE_PATHS[@]}"; do
   
   # Update Lambda functions if --update-only or no flag
   if [ "$UPDATE_LAMBDAS" = true ]; then
-    LAMBDA_FUNCTION_NAME="${STACK_NAME}-${SERVICE_NAME}"
+    LAST_FOLDER=$(basename "$SERVICE_PATH")
+    LAMBDA_FUNCTION_NAME="${STACK_NAME}-${LAST_FOLDER}"
     echo "Updating Lambda function: $LAMBDA_FUNCTION_NAME..."
     
     # Check if Lambda function exists
