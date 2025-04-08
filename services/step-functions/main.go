@@ -3,15 +3,16 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sfn"
-	"github.com/google/uuid"
 )
 
 var (
@@ -100,12 +101,19 @@ func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, e
 	switch {
 	case event.Records != nil:
 		// Ingest workflow triggerd by s3 event::
-		event.GUID = aws.String(uuid.New().String())
+		keyParts := strings.Split(event.Records[0].S3.Object.Key, "/")
+		if len(keyParts) > 1 {
+			event.GUID = aws.String(keyParts[1])
+		} else {
+			log.Printf("step-function: main.Handler: Unable to extract GUID from S3 object key")
+			return nil, fmt.Errorf("step-function: main.Handler: Unable to extract GUID from S3 object key")
+		}
 		event.WorkflowTrigger = aws.String("Video")
 
 		inputBytes, err := json.Marshal(event)
 		if err != nil {
 			log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
+			return nil, fmt.Errorf("step-function: main.Handler: Error marshalling event: %v", err)
 		}
 
 		startExecutionInput = sfn.StartExecutionInput{
@@ -120,6 +128,7 @@ func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, e
 		})
 		if err != nil {
 			log.Printf("step-function: main.Handler: Error marshalling event: %v", err)
+			return nil, fmt.Errorf("step-function: main.Handler: Error marshalling event: %v", err)
 		}
 		// Process workflow trigger
 		startExecutionInput = sfn.StartExecutionInput{
@@ -132,6 +141,7 @@ func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, e
 		eventBridgeBytes, err := json.Marshal(eventBridgeEvent)
 		if err != nil {
 			log.Printf("step-function: main.Handler: Error marshalling eventBridge: %v", err)
+			return nil, fmt.Errorf("step-function: main.Handler: Error marshalling eventBridge: %v", err)
 		}
 
 		startExecutionInput = sfn.StartExecutionInput{
@@ -147,11 +157,14 @@ func (h *Handler) HandleRequest(generalEvent map[string]interface{}) (*string, e
 	data, err := h.StepFunctionClient.StartExecution(&startExecutionInput)
 	if err != nil {
 		log.Printf("step-function: main.Handler: Error starting execution: %v", err)
+		return nil, fmt.Errorf("step-function: main.Handler: Error starting execution: %v", err)
+
 	}
 
 	dataJson, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("step-function: main.Handler: Error marshalling data: %v", err)
+		return nil, fmt.Errorf("step-function: main.Handler: Error marshalling data: %v", err)
 	}
 	log.Printf("STATEMACHINE EXECUTE:: %s", dataJson)
 
