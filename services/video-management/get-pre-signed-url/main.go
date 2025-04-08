@@ -14,6 +14,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 )
 
 type S3PresignClient interface {
@@ -66,7 +67,7 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	}
 
 	// Generate the S3 key (path) where the video will be stored
-	s3Key := userID + "/" + fileName
+	s3Key := userID + "/" + uuid.New().String() + "/" + fileName
 	// Get the bucket name from environment variable
 	bucket := os.Getenv("Source")
 
