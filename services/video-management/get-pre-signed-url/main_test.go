@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockS3PresignClient struct {
+type S3PresignClientMock struct {
 	mock.Mock
 }
 
-func (m *MockS3PresignClient) PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+func (m *S3PresignClientMock) PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
 	args := m.Called(ctx, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -29,7 +29,7 @@ func TestGetPresignedURL(t *testing.T) {
 	os.Setenv("Source", "test-bucket")
 
 	t.Run("should success on presigning URL", func(t *testing.T) {
-		s3PresignClient := &MockS3PresignClient{}
+		s3PresignClient := &S3PresignClientMock{}
 		s3PresignClient.On("PresignPutObject", mock.Anything, mock.Anything).Return(&v4.PresignedHTTPRequest{
 			URL: "https://example.com",
 		}, nil)
@@ -57,7 +57,7 @@ func TestGetPresignedURL(t *testing.T) {
 	})
 
 	t.Run("should fails when authenticate fails", func(t *testing.T) {
-		s3PresignClient := &MockS3PresignClient{}
+		s3PresignClient := &S3PresignClientMock{}
 		s3PresignClient.On("PresignPutObject", mock.Anything, mock.Anything).Return(&v4.PresignedHTTPRequest{
 			URL: "https://example.com",
 		}, nil)
@@ -85,7 +85,7 @@ func TestGetPresignedURL(t *testing.T) {
 	})
 
 	t.Run("should fails when generating presigned url fails", func(t *testing.T) {
-		s3PresignClient := &MockS3PresignClient{}
+		s3PresignClient := &S3PresignClientMock{}
 		s3PresignClient.On("PresignPutObject", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 		handler := GetPresignedURLHandler{
 			s3PresignClient: s3PresignClient,
