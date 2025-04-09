@@ -160,7 +160,6 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 }
 
 func main() {
-	// Create an S3 client
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("ap-southeast-2"),
 	)
