@@ -19,7 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-type MovieInformation struct {
+type VideoInformation struct {
 	// Basic Information
 	Title           *string    `json:"title"`
 	OriginalTitle   *string    `json:"originalTitle"`
@@ -87,8 +87,8 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	log.Printf("Request: %s", requestJSON)
 
 	ctx := context.Background()
-	var moveInfo MovieInformation
-	err := json.Unmarshal([]byte(request.Body), &moveInfo)
+	var videoInfo VideoInformation
+	err := json.Unmarshal([]byte(request.Body), &videoInfo)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
@@ -97,7 +97,7 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	}
 
 	// Update the item in DynamoDB
-	values, err := attributevalue.MarshalMap(moveInfo)
+	values, err := attributevalue.MarshalMap(videoInfo)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
@@ -107,7 +107,7 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 
 	valuesJSON, _ := json.Marshal(values)
 	log.Printf("Values: %s", valuesJSON)
-	
+
 	var update expression.UpdateBuilder
 	for key, value := range values {
 		update = update.Set(expression.Name(key), expression.Value(value))
@@ -145,17 +145,26 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 
 	log.Println("UPDATE:: Successfully updated item in DynamoDB")
 
-	attributeMapJSON, err := json.Marshal(res.Attributes)
+	var updatedVideoInfo VideoInformation
+	err = attributevalue.UnmarshalMap(res.Attributes, &updatedVideoInfo)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to unmarshal response: %v", err),
+			Body:       fmt.Sprintf("Failed to unmarshal updated item: %v", err),
+		}, nil
+	}
+
+	updatedVideoInfoJSON, err := json.Marshal(updatedVideoInfo)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Failed to marshal updated item to JSON: %v", err),
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       string(attributeMapJSON),
+		Body:       string(updatedVideoInfoJSON),
 	}, nil
 }
 
