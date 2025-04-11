@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
@@ -284,14 +285,26 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}
 	}
 
-	// make input
+	expr, err := buildFilterExpressionWithBuilder(genres, casts, countries, productionYears)
+	if err != nil {
+		log.Printf("Failed to build expression: %v", err)
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Failed to build expression: %v", err),
+		}, nil
+	}
+
 	scanInput := &dynamodb.ScanInput{
 		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
 		Limit:                     aws.Int32(int32(pageSize)),
 		ExclusiveStartKey:         lastEvaluatedKey,
-		FilterExpression:          aws.String(buildFilterExpression(genres, casts, countries, productionYears)),
-		ExpressionAttributeValues: buildExpressionAttributeValues(genres, casts, countries, productionYears),
+		FilterExpression:          expr.Filter(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
 	}
+
+	jsonInput, _ := json.Marshal(scanInput)
+	log.Printf("ScanInput: %s", jsonInput)
 
 	result, err := h.DynamoDBClient.Scan(ctx, scanInput)
 	if err != nil {
@@ -358,12 +371,19 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 func (h *Handler) scanToPage(ctx context.Context, pageStart, pageNumber, pageSize int, genres, casts, countries, productionYears []string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	for i := pageStart; i < pageNumber; i++ {
+		expr, err := buildFilterExpressionWithBuilder(genres, casts, countries, productionYears)
+		if err != nil {
+			log.Printf("Failed to build expression: %v", err)
+			return nil, err
+		}
+
 		scanInput := &dynamodb.ScanInput{
 			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
 			Limit:                     aws.Int32(int32(pageSize)),
 			ExclusiveStartKey:         lastEvaluatedKey,
-			FilterExpression:          aws.String(buildFilterExpression(genres, casts, countries, productionYears)),
-			ExpressionAttributeValues: buildExpressionAttributeValues(genres, casts, countries, productionYears),
+			FilterExpression:          expr.Filter(),
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
 		}
 
 		result, err := h.DynamoDBClient.Scan(ctx, scanInput)
@@ -380,49 +400,38 @@ func (h *Handler) scanToPage(ctx context.Context, pageStart, pageNumber, pageSiz
 	return lastEvaluatedKey, nil
 }
 
-func buildFilterExpression(genres, casts, countries, productionYears []string) string {
-	var filters []string
+func buildFilterExpressionWithBuilder(genres, casts, countries, productionYears []string) (expression.Expression, error) {
+	// Base filter: PK begins with "VIDEO#" and SK equals "METADATA"
+	filter := expression.Name("PK").BeginsWith("VIDEO#").And(expression.Name("SK").Equal(expression.Value("METADATA")))
 
-	// Default filter to ensure PK starts with VIDEO# and SK is METADATA
-	filters = append(filters, "begins_with(PK, :pk)", "SK = :sk")
-
-	if len(genres) > 0 {
-		filters = append(filters, "contains(#genres, :genres)")
+	addORContains := func(field string, values []string) expression.ConditionBuilder {
+		var orCond expression.ConditionBuilder
+		for i, val := range values {
+			cond := expression.Name(field).Contains(val)
+			if i == 0 {
+				orCond = cond
+			} else {
+				orCond = orCond.Or(cond)
+			}
+		}
+		return orCond
 	}
-	if len(casts) > 0 {
-		filters = append(filters, "contains(#casts, :casts)")
-	}
-	if len(countries) > 0 {
-		filters = append(filters, "contains(#countries, :countries)")
-	}
-	if len(productionYears) > 0 {
-		filters = append(filters, "contains(#productionYears, :productionYears)")
-	}
-
-	return strings.Join(filters, " AND ")
-}
-
-func buildExpressionAttributeValues(genres, casts, countries, productionYears []string) map[string]types.AttributeValue {
-	expressionValues := make(map[string]types.AttributeValue)
-
-	// Default values for PK and SK
-	expressionValues[":pk"] = &types.AttributeValueMemberS{Value: "VIDEO#"}
-	expressionValues[":sk"] = &types.AttributeValueMemberS{Value: "METADATA"}
 
 	if len(genres) > 0 {
-		expressionValues[":genres"] = &types.AttributeValueMemberSS{Value: genres}
+		filter = filter.And(addORContains("genres", genres))
 	}
 	if len(casts) > 0 {
-		expressionValues[":casts"] = &types.AttributeValueMemberSS{Value: casts}
+		filter = filter.And(addORContains("casts", casts))
 	}
 	if len(countries) > 0 {
-		expressionValues[":countries"] = &types.AttributeValueMemberSS{Value: countries}
+		filter = filter.And(addORContains("countryOfOrigin", countries))
 	}
 	if len(productionYears) > 0 {
-		expressionValues[":productionYears"] = &types.AttributeValueMemberSS{Value: productionYears}
+		filter = filter.And(addORContains("productionYear", productionYears))
 	}
 
-	return expressionValues
+	// Return final expression
+	return expression.NewBuilder().WithFilter(filter).Build()
 }
 
 func parseGenres(input string) []string {
