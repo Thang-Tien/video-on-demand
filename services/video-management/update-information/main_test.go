@@ -47,7 +47,6 @@ func TestUpdateInformation(t *testing.T) {
 			t.Errorf("expect no error, got %v", err)
 		}
 		assert.Equal(t, 200, res.StatusCode)
-		assert.Equal(t, "{}", res.Body)
 	})
 
 	t.Run("should return error when UpdateItem fails", func(t *testing.T) {

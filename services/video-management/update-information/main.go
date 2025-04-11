@@ -110,7 +110,8 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 
 	var update expression.UpdateBuilder
 	for key, value := range values {
-		update = update.Set(expression.Name(key), expression.Value(value))
+		uncapitalizedKey := string(key[0]+32) + key[1:]
+		update = update.Set(expression.Name(uncapitalizedKey), expression.Value(value))
 	}
 	expr, err := expression.NewBuilder().WithUpdate(update).Build()
 	if err != nil {
