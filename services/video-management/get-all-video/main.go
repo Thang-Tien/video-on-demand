@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -21,17 +22,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 )
 
 const (
-	DefaultLimit   = 5
-	MaxLimit       = 20
-	TokenExpiryMin = 60 // Token expiry time in minutes
+	DEFAULT_PAGE_SIZE = 5
+	MAX_PAGE_SIZE     = 20
+	TOKEN_EXPIRY_MINS = 60 // Token expiry time in minutes
 )
+
+var errInvalidPageNumber = errors.New("invalid page number")
 
 type VideoInformation struct {
 	PK                     string                      `json:"pk"`
@@ -179,13 +181,17 @@ type VideoDetail struct {
 
 type Response struct {
 	Videos     []VideoInformation `json:"videos"`
+	Count      int                `json:"count"`
+	TotalCount int                `json:"totalCount,omitempty"` // Optional, requires a separate count query
 	NextToken  string             `json:"nextToken,omitempty"`
-	TotalCount int                `json:"totalCount"`
+	PageNumber int                `json:"pageNumber"`
+	PagesCount int                `json:"pagesCount,omitempty"` // Optional, requires knowing total count
 }
 
 type PaginationToken struct {
 	LastEvaluatedKey map[string]string `json:"lastEvaluatedKey"`
 	ExpiresAt        int64             `json:"expiresAt"`
+	PageNumber       int               `json:"pageNumber,omitempty"`
 }
 
 type DynamoDBClient interface {
@@ -200,71 +206,91 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	requestJSON, _ := json.Marshal(request)
 	log.Printf("Request: %s", requestJSON)
 
-	// Parse query parameters
-	limit := DefaultLimit
-	if limitParam, ok := request.QueryStringParameters["limit"]; ok {
-		if parsedLimit, err := strconv.Atoi(limitParam); err == nil {
-			if parsedLimit > 0 {
-				limit = parsedLimit
-			}
-			// Cap the limit to avoid excessive resource usage
-			if limit > MaxLimit {
-				limit = MaxLimit
-			}
-		}
+	// TODO: Validate request
+
+	// get query parameters
+	// get page number from query parameters
+	pageNumber, _ := strconv.Atoi(request.QueryStringParameters["pageNumber"])
+	if pageNumber <= 0 {
+		pageNumber = 1
 	}
 
-	// Get last evaluated key from nextToken if provided
-	var exclusiveStartKey map[string]types.AttributeValue
-	if nextToken, ok := request.QueryStringParameters["nextToken"]; ok && nextToken != "" {
-		// Decode and decrypt the nextToken
-		decodedToken, err := decodeNextToken(nextToken)
+	pageSize, _ := strconv.Atoi(request.QueryStringParameters["pageSize"])
+	if pageSize <= 0 {
+		pageSize = DEFAULT_PAGE_SIZE
+	} else if pageSize > MAX_PAGE_SIZE {
+		pageSize = MAX_PAGE_SIZE
+	}
+
+	nextToken := request.QueryStringParameters["nextToken"]
+
+	// search terms
+	genres := parseGenres(request.QueryStringParameters["genres"])
+	casts := parseCasts(request.QueryStringParameters["casts"])
+	countries := parseCountries(request.QueryStringParameters["countries"])
+	productionYears := parseProductionYears(request.QueryStringParameters["productionYears"])
+
+	// if page number is provided but not nextToken, scan to that page
+	var lastEvaluatedKey map[string]types.AttributeValue
+	if nextToken == "" {
+		var err error
+		lastEvaluatedKey, err = h.scanToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
+		if err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode: http.StatusInternalServerError,
+				Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+			}, nil
+		}
+	} else if nextToken != "" {
+		// Decode the nextToken to get the last evaluated key
+		paginationToken, err := decodeNextToken(nextToken)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusBadRequest,
-				Body:       "Error decoding nextToken: " + err.Error(),
+				Body:       fmt.Sprintf("Invalid nextToken format: %v", err),
 			}, nil
 		}
 
-		// Check if token has expired
-		if decodedToken.ExpiresAt < time.Now().Unix() {
+		// Check if the token is expired
+		if time.Now().Unix() > paginationToken.ExpiresAt {
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusBadRequest,
-				Body:       "Token has expired",
+				Body:       "nextToken has expired",
 			}, nil
 		}
 
-		// Convert to DynamoDB attribute values
-		exclusiveStartKey = map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: decodedToken.LastEvaluatedKey["PK"]},
-			"SK": &types.AttributeValueMemberS{Value: decodedToken.LastEvaluatedKey["SK"]},
+		// Create the last evaluated key from the decoded token
+		tokenLastEvaluatedKey := map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["PK"]},
+			"SK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["SK"]},
+		}
+
+		if paginationToken.PageNumber > pageNumber {
+			lastEvaluatedKey, err = h.scanToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
+			if err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode: http.StatusInternalServerError,
+					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+				}, nil
+			}
+		} else {
+			lastEvaluatedKey, err = h.scanToPage(ctx, paginationToken.PageNumber, pageNumber, pageSize, genres, casts, countries, productionYears, tokenLastEvaluatedKey)
+			if err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode: http.StatusInternalServerError,
+					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+				}, nil
+			}
 		}
 	}
 
-	// Create a filter expression for items with PK starting with "VIDEO#" and SK = "METADATA"
-	filterBuilder := expression.Name("PK").BeginsWith("VIDEO#").And(expression.Name("SK").Equal(expression.Value("METADATA")))
-
-	expr, err := expression.NewBuilder().WithFilter(filterBuilder).Build()
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to build expression: %v", err),
-		}, nil
-	}
-
-	// Execute scan
+	// make input
 	scanInput := &dynamodb.ScanInput{
 		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		Limit:                     aws.Int32(int32(limit)),
-	}
-
-	// Add exclusiveStartKey if we have a nextToken
-	if exclusiveStartKey != nil {
-		scanInput.ExclusiveStartKey = exclusiveStartKey
-		log.Printf("ExclusiveStartKey: %v", exclusiveStartKey)
+		Limit:                     aws.Int32(int32(pageSize)),
+		ExclusiveStartKey:         lastEvaluatedKey,
+		FilterExpression:          aws.String(buildFilterExpression(genres, casts, countries, productionYears)),
+		ExpressionAttributeValues: buildExpressionAttributeValues(genres, casts, countries, productionYears),
 	}
 
 	result, err := h.DynamoDBClient.Scan(ctx, scanInput)
@@ -275,47 +301,42 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
-	videos := make([]VideoInformation, 0, len(result.Items))
-	for _, item := range result.Items {
-		var video VideoInformation
-		if err := attributevalue.UnmarshalMap(item, &video); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to unmarshal item: %v", err),
-			}, nil
-		}
-		videos = append(videos, video)
+	var videos []VideoInformation
+	err = attributevalue.UnmarshalListOfMaps(result.Items, &videos)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Failed to unmarshal items: %v", err),
+		}, nil
 	}
 
-	// Prepare the response
 	response := Response{
 		Videos:     videos,
-		TotalCount: len(videos),
+		Count:      len(videos),
+		PageNumber: pageNumber,
 	}
 
-	// Set nextToken if there are more results
+	// Add nextToken if there are more results
 	if result.LastEvaluatedKey != nil {
-		nextKey := map[string]string{
-			"PK": result.LastEvaluatedKey["PK"].(*types.AttributeValueMemberS).Value,
-			"SK": result.LastEvaluatedKey["SK"].(*types.AttributeValueMemberS).Value,
+		lastKey := PaginationToken{
+			LastEvaluatedKey: make(map[string]string),
+			ExpiresAt:        time.Now().Add(TOKEN_EXPIRY_MINS * time.Minute).Unix(),
+			PageNumber:       pageNumber + 1,
+		}
+		if pk, ok := result.LastEvaluatedKey["PK"].(*types.AttributeValueMemberS); ok {
+			lastKey.LastEvaluatedKey["PK"] = pk.Value
+		}
+		if sk, ok := result.LastEvaluatedKey["SK"].(*types.AttributeValueMemberS); ok {
+			lastKey.LastEvaluatedKey["SK"] = sk.Value
 		}
 
-		// Create token with expiry time
-		token := PaginationToken{
-			LastEvaluatedKey: nextKey,
-			ExpiresAt:        time.Now().Add(time.Minute * TokenExpiryMin).Unix(),
-		}
-
-		// Encode the token
-		encodedToken, err := encodeNextToken(token)
+		response.NextToken, err = encodeNextToken(lastKey)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       fmt.Sprintf("Failed to encode nextToken: %v", err),
 			}, nil
 		}
-
-		response.NextToken = encodedToken
 	}
 
 	// Convert response to JSON
@@ -327,28 +348,113 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
+	log.Printf("Response: %s", responseJSON)
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Body:       string(responseJSON),
 	}, nil
 }
 
-func main() {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
-	)
-	if err != nil {
-		log.Fatalf("unable to load SDK config: %v", err)
+func (h *Handler) scanToPage(ctx context.Context, pageStart, pageNumber, pageSize int, genres, casts, countries, productionYears []string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
+	for i := pageStart; i < pageNumber; i++ {
+		scanInput := &dynamodb.ScanInput{
+			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
+			Limit:                     aws.Int32(int32(pageSize)),
+			ExclusiveStartKey:         lastEvaluatedKey,
+			FilterExpression:          aws.String(buildFilterExpression(genres, casts, countries, productionYears)),
+			ExpressionAttributeValues: buildExpressionAttributeValues(genres, casts, countries, productionYears),
+		}
+
+		result, err := h.DynamoDBClient.Scan(ctx, scanInput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan DynamoDB: %w", err)
+		}
+
+		lastEvaluatedKey = result.LastEvaluatedKey
+		if lastEvaluatedKey == nil {
+			return nil, errInvalidPageNumber
+		}
 	}
 
-	dynamoDBClient := dynamodb.NewFromConfig(cfg)
+	return lastEvaluatedKey, nil
+}
 
-	handler := &Handler{
-		DynamoDBClient: dynamoDBClient,
+func buildFilterExpression(genres, casts, countries, productionYears []string) string {
+	var filters []string
+
+	// Default filter to ensure PK starts with VIDEO# and SK is METADATA
+	filters = append(filters, "begins_with(PK, :pk)", "SK = :sk")
+
+	if len(genres) > 0 {
+		filters = append(filters, "contains(#genres, :genres)")
+	}
+	if len(casts) > 0 {
+		filters = append(filters, "contains(#casts, :casts)")
+	}
+	if len(countries) > 0 {
+		filters = append(filters, "contains(#countries, :countries)")
+	}
+	if len(productionYears) > 0 {
+		filters = append(filters, "contains(#productionYears, :productionYears)")
 	}
 
-	// Start the Lambda function
-	lambda.Start(handler.HandleRequest)
+	return strings.Join(filters, " AND ")
+}
+
+func buildExpressionAttributeValues(genres, casts, countries, productionYears []string) map[string]types.AttributeValue {
+	expressionValues := make(map[string]types.AttributeValue)
+
+	// Default values for PK and SK
+	expressionValues[":pk"] = &types.AttributeValueMemberS{Value: "VIDEO#"}
+	expressionValues[":sk"] = &types.AttributeValueMemberS{Value: "METADATA"}
+
+	if len(genres) > 0 {
+		expressionValues[":genres"] = &types.AttributeValueMemberSS{Value: genres}
+	}
+	if len(casts) > 0 {
+		expressionValues[":casts"] = &types.AttributeValueMemberSS{Value: casts}
+	}
+	if len(countries) > 0 {
+		expressionValues[":countries"] = &types.AttributeValueMemberSS{Value: countries}
+	}
+	if len(productionYears) > 0 {
+		expressionValues[":productionYears"] = &types.AttributeValueMemberSS{Value: productionYears}
+	}
+
+	return expressionValues
+}
+
+func parseGenres(input string) []string {
+	if input == "" {
+		return nil
+	}
+	genres := strings.Split(input, ",")
+	return genres
+}
+
+func parseCasts(input string) []string {
+	if input == "" {
+		return nil
+	}
+	casts := strings.Split(input, ",")
+	return casts
+}
+
+func parseCountries(input string) []string {
+	if input == "" {
+		return nil
+	}
+	countries := strings.Split(input, ",")
+	return countries
+}
+
+func parseProductionYears(input string) []string {
+	if input == "" {
+		return nil
+	}
+	productionYears := strings.Split(input, ",")
+	return productionYears
 }
 
 // encodeNextToken encrypts and base64 encodes a pagination token
@@ -430,4 +536,22 @@ func decodeNextToken(encodedToken string) (PaginationToken, error) {
 	}
 
 	return token, nil
+}
+
+func main() {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-southeast-2"),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config: %v", err)
+	}
+
+	dynamoDBClient := dynamodb.NewFromConfig(cfg)
+
+	handler := &Handler{
+		DynamoDBClient: dynamoDBClient,
+	}
+
+	// Start the Lambda function
+	lambda.Start(handler.HandleRequest)
 }

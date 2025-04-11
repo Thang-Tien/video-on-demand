@@ -25,8 +25,9 @@ func (m *DynamoDBClientMock) Scan(ctx context.Context, params *dynamodb.ScanInpu
 }
 
 func TestGetAllVideo(t *testing.T) {
-	os.Setenv("EncryptionKey", ".......nguyenhoangdieuanh.......")
-	t.Run("should success get items", func(t *testing.T) {
+	os.Setenv("EncryptionKey", "................................")
+	ctx := context.Background()
+	t.Run("should success get video with default pageNumber", func(t *testing.T) {
 		dynamoDBClient := &DynamoDBClientMock{}
 		handler := &Handler{
 			DynamoDBClient: dynamoDBClient,
@@ -47,14 +48,14 @@ func TestGetAllVideo(t *testing.T) {
 			},
 		}, nil)
 
-		res, err := handler.HandleRequest(context.Background(), event)
+		res, err := handler.HandleRequest(ctx, event)
 		if err != nil {
 			t.Errorf("expect no error, got %v", err)
 		}
 		assert.Equal(t, 200, res.StatusCode)
 	})
 
-	t.Run("should success get item with nextToken", func(t *testing.T) {
+	t.Run("should success get video with pageNumber", func(t *testing.T) {
 		dynamoDBClient := &DynamoDBClientMock{}
 		handler := &Handler{
 			DynamoDBClient: dynamoDBClient,
@@ -62,7 +63,7 @@ func TestGetAllVideo(t *testing.T) {
 
 		event := events.APIGatewayProxyRequest{
 			QueryStringParameters: map[string]string{
-				"nextToken": "gA-thvPsbyCAD2HWzfPF_XhrTjhbDOH6jsdzhwRQ5lyn6Q2hHiSP2iKJr37d6TRtK9LNb5k1ZiKtd0LWjMfl5r2l1pcqFSAyW49qeQHz_jkzfIwlWeCuWhOrzsABDkYC2wtlrNgKqOkQuA==",
+				"pageNumber": "1",
 			},
 		}
 
@@ -75,10 +76,53 @@ func TestGetAllVideo(t *testing.T) {
 			},
 		}, nil)
 
-		res, err := handler.HandleRequest(context.Background(), event)
+		res, err := handler.HandleRequest(ctx, event)
 		if err != nil {
 			t.Errorf("expect no error, got %v", err)
 		}
 		assert.Equal(t, 200, res.StatusCode)
+	})
+
+	t.Run("should success get video with pageNumber and nextToken", func(t *testing.T) {
+		dynamoDBClient := &DynamoDBClientMock{}
+		handler := &Handler{
+			DynamoDBClient: dynamoDBClient,
+		}
+
+		event := events.APIGatewayProxyRequest{
+			QueryStringParameters: map[string]string{
+				"pageNumber": "3",
+				"nextToken":  "Vw32w6wn1FDu2XGMFAxn6pI8qUMNqYLe-k9ZLC6AfMvOPT8CCPbyt1CQt9aN8msqSYtOv-ZRPgGlLBVZecHdFNdxEY6q1jO6DRWnm7A5sVv5BwTzaHUoFAZawzMwUlwbBmS6l5IhnbDsJyhFXHXfWVJlYNTqiTVVQQ==",
+			},
+		}
+
+		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Once().Return(&dynamodb.ScanOutput{
+			LastEvaluatedKey: map[string]types.AttributeValue{
+				"PK": &types.AttributeValueMemberS{Value: "VIDEO#123"},
+				"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+			},
+			Items: []map[string]types.AttributeValue{
+				{
+					"PK": &types.AttributeValueMemberS{Value: "VIDEO#123"},
+					"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+				},
+			},
+		}, nil)
+
+		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Once().Return(&dynamodb.ScanOutput{
+			Items: []map[string]types.AttributeValue{
+				{
+					"PK": &types.AttributeValueMemberS{Value: "VIDEO#456"},
+					"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+				},
+			},
+		}, nil)
+
+		res, err := handler.HandleRequest(ctx, event)
+		if err != nil {
+			t.Errorf("expect no error, got %v", err)
+		}
+		assert.Equal(t, 200, res.StatusCode)
+		
 	})
 }
