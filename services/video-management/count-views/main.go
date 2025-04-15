@@ -231,9 +231,44 @@ func (h *Handler) updateDynamoDBViewCount(ctx context.Context, guid string, view
 	}
 
 	// Execute the update
-	_, err = h.DynamoDBClient.UpdateItem(ctx, input)
+	updateItemOutput, err := h.DynamoDBClient.UpdateItem(ctx, input)
 	if err != nil {
 		return fmt.Errorf("error updating DynamoDB: %v", err)
+	}
+	
+	log.Printf("UpdateItem output: %+v", updateItemOutput)
+
+	// Get current month's views instead of total
+	var monthlyViews int
+	if av, ok := updateItemOutput.Attributes["monthly"]; ok {
+		if mv, ok := av.(*types.AttributeValueMemberM); ok {
+			if cmv, ok := mv.Value[currentMonth]; ok {
+				if n, ok := cmv.(*types.AttributeValueMemberN); ok {
+					fmt.Sscanf(n.Value, "%d", &monthlyViews)
+				}
+			}
+		}
+	}
+
+	// Create a period entry for ranking purposes (using padding for sorting)
+	paddedCount := fmt.Sprintf("%06d", monthlyViews)
+	periodKey := fmt.Sprintf("PERIOD#%s", currentMonth)
+	rankKey := fmt.Sprintf("VIEWS#%s#VIDEO#%s", paddedCount, guid)
+
+	rankInput := &dynamodb.UpdateItemInput{
+		TableName: aws.String(os.Getenv("DynamoDBTable")),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: periodKey},
+			"SK": &types.AttributeValueMemberS{Value: rankKey},
+		},
+		UpdateExpression: aws.String("SET videoId = :videoId"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":videoId": &types.AttributeValueMemberS{Value: guid},
+		},
+	}
+
+	if _, err := h.DynamoDBClient.UpdateItem(ctx, rankInput); err != nil {
+		log.Printf("Error creating period ranking entry: %v", err)
 	}
 
 	return nil
