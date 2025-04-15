@@ -32,7 +32,7 @@ func TestHandleRequest(t *testing.T) {
 					{
 						S3: events.S3Entity{
 							Object: events.S3Object{
-								Key: "test.mp4",
+								Key: "996ee488-20f1-70c6-d50f-28a36acb3613/87457a49-d353-4263-8d8b-3bb297a303f6/test.mp4",
 							},
 						},
 					},

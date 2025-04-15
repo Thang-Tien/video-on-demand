@@ -92,7 +92,7 @@ func TestGetAllVideo(t *testing.T) {
 		event := events.APIGatewayProxyRequest{
 			QueryStringParameters: map[string]string{
 				"pageNumber": "3",
-				"nextToken":  "Vw32w6wn1FDu2XGMFAxn6pI8qUMNqYLe-k9ZLC6AfMvOPT8CCPbyt1CQt9aN8msqSYtOv-ZRPgGlLBVZecHdFNdxEY6q1jO6DRWnm7A5sVv5BwTzaHUoFAZawzMwUlwbBmS6l5IhnbDsJyhFXHXfWVJlYNTqiTVVQQ==",
+				"nextToken":  "LUskRG2xm2xv7IHa8EcqhEiB9d8wIEfEsk2w7mz1SaT5100l5LL2kN8JiLR_nuqrLEf5eMSqI5hO0NDDUNfDg_z0Ygn3-sDlLS5Rdiw_mRatSyh5IdCafUiBJaVGJbcbUhOXYSgVI141kv21AYvwlh_yPcRlfhJOLA==",
 			},
 		}
 

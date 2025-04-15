@@ -69,7 +69,7 @@ if [ ${#SPECIFIC_TESTS[@]} -gt 0 ]; then
     TEST_FILTER=${TEST_FILTER%|}
 fi
 
-# Find and run tests in all service directories
+# Find and run tests in all service directories (including subdirectories)
 echo "Looking for services in ${SERVICES_DIR}"
 SERVICES_COUNT=0
 FAILED_SERVICES=()
@@ -79,30 +79,31 @@ if [ ! -d "$SERVICES_DIR" ]; then
     exit 1
 fi
 
-for service_dir in "$SERVICES_DIR"/*; do
-    if [ -d "$service_dir" ] && [ -f "$service_dir/go.mod" ]; then
-        SERVICE_NAME=$(basename "$service_dir")
-        
-        # Skip if a target service is specified and this is not it
-        if [ -n "$TARGET_SERVICE" ] && [ "$SERVICE_NAME" != "$TARGET_SERVICE" ]; then
-            continue
-        fi
-        
-        echo "----------------------------------------"
-        echo "Running tests for service: $SERVICE_NAME"
-        echo "----------------------------------------"
-        
-        cd "$service_dir" || continue
-        
-        if go test $VERBOSE_FLAG ./... $TEST_FILTER; then
-            echo "✅ $SERVICE_NAME tests passed"
-        else
-            echo "❌ $SERVICE_NAME tests failed"
-            FAILED_SERVICES+=("$SERVICE_NAME")
-        fi
-        
-        SERVICES_COUNT=$((SERVICES_COUNT+1))
+# Recursively find all directories containing go.mod files
+SERVICE_DIRS=$(find "$SERVICES_DIR" -type f -name "go.mod" -exec dirname {} \;)
+
+for service_dir in $SERVICE_DIRS; do
+    SERVICE_NAME=$(basename "$service_dir")
+    
+    # Skip if a target service is specified and this is not it
+    if [ -n "$TARGET_SERVICE" ] && [[ "$service_dir" != *"$TARGET_SERVICE"* ]]; then
+        continue
     fi
+    
+    echo "----------------------------------------"
+    echo "Running tests for service: $SERVICE_NAME"
+    echo "----------------------------------------"
+    
+    cd "$service_dir" || continue
+    
+    if go test $VERBOSE_FLAG ./... $TEST_FILTER; then
+        echo "✅ $SERVICE_NAME tests passed"
+    else
+        echo "❌ $SERVICE_NAME tests failed"
+        FAILED_SERVICES+=("$SERVICE_NAME")
+    fi
+    
+    SERVICES_COUNT=$((SERVICES_COUNT+1))
 done
 
 # Check if we were looking for a specific service but didn't find it
