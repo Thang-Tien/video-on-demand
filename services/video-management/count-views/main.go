@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -27,6 +28,7 @@ type S3Client interface {
 
 type DynamoDBClient interface {
 	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
 type Handler struct {
@@ -65,6 +67,8 @@ func (h *Handler) HandleRequest(ctx context.Context, event events.S3Event) error
 			log.Printf("Error processing log file: %v", err)
 			continue
 		}
+
+		log.Printf("View counts: %v", viewCounts)
 
 		// Update DynamoDB with the view counts
 		for guid, count := range viewCounts {
@@ -162,14 +166,51 @@ func (h *Handler) processLogFile(reader io.Reader) (map[string]int, error) {
 
 // updateDynamoDBViewCount updates the view count for a video in DynamoDB
 func (h *Handler) updateDynamoDBViewCount(ctx context.Context, guid string, views int) error {
-	// Create the update expression
-	updateExpr := expression.Set(
-		expression.Name("viewCount"),
-		expression.Plus(
-			expression.IfNotExists(expression.Name("viewCount"), expression.Value(0)),
+	currentMonth := time.Now().Format("2006-01")
+
+	// First, check if the item exists
+	getInput := &dynamodb.GetItemInput{
+		TableName: aws.String(os.Getenv("DynamoDBTable")),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("VIDEO#%s", guid)},
+			"SK": &types.AttributeValueMemberS{Value: "VIEWS"},
+		},
+		ProjectionExpression: aws.String("PK"), // We only need to know if the item exists
+	}
+
+	result, err := h.DynamoDBClient.GetItem(ctx, getInput)
+	if err != nil {
+		return fmt.Errorf("error checking if item exists: %v", err)
+	}
+
+	// Build different update expressions based on whether the item exists
+	var updateExpr expression.UpdateBuilder
+
+	if len(result.Item) == 0 {
+		// Item doesn't exist, create new item with both total and monthly
+		updateExpr = expression.Set(
+			expression.Name("total"),
 			expression.Value(views),
-		),
-	)
+		).Set(
+			expression.Name("monthly"),
+			expression.Value(map[string]int{currentMonth: views}),
+		)
+	} else {
+		// Item exists, update total and append to monthly
+		updateExpr = expression.Set(
+			expression.Name("total"),
+			expression.Plus(
+				expression.IfNotExists(expression.Name("total"), expression.Value(0)),
+				expression.Value(views),
+			),
+		).Set(
+			expression.Name("monthly."+currentMonth),
+			expression.Plus(
+				expression.IfNotExists(expression.Name("monthly."+currentMonth), expression.Value(0)),
+				expression.Value(views),
+			),
+		)
+	}
 
 	expr, err := expression.NewBuilder().WithUpdate(updateExpr).Build()
 	if err != nil {
@@ -181,7 +222,7 @@ func (h *Handler) updateDynamoDBViewCount(ctx context.Context, guid string, view
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Key: map[string]types.AttributeValue{
 			"PK": &types.AttributeValueMemberS{Value: fmt.Sprintf("VIDEO#%s", guid)},
-			"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+			"SK": &types.AttributeValueMemberS{Value: "VIEWS"},
 		},
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),

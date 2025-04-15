@@ -27,6 +27,15 @@ func (m *DynamoDBClientMock) UpdateItem(ctx context.Context, params *dynamodb.Up
 	}
 	return args.Get(0).(*dynamodb.UpdateItemOutput), args.Error(1)
 }
+
+func (m *DynamoDBClientMock) GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dynamodb.GetItemOutput), args.Error(1)
+}
+
 func (m *S3ClientMock) GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 	args := m.Called(ctx, params)
 	if args.Get(0) == nil {
@@ -88,6 +97,7 @@ func TestCountView(t *testing.T) {
 		s3Client.On("GetObject", mock.Anything, mock.Anything).Return(&s3.GetObjectOutput{
 			Body: file,
 		}, nil)
+		dynamoDBClient.On("GetItem", mock.Anything, mock.Anything).Return(&dynamodb.GetItemOutput{}, nil)
 
 		err = handler.HandleRequest(context.Background(), event)
 		assert.NoError(t, err, "expected no error while handling request")
@@ -117,6 +127,7 @@ func TestCountView(t *testing.T) {
 		}
 
 		s3Client.On("GetObject", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		dynamoDBClient.On("GetItem", mock.Anything, mock.Anything).Return(&dynamodb.GetItemOutput{}, nil)
 
 		err := handler.HandleRequest(context.Background(), event)
 		assert.NoError(t, err, "expected no error while handling request")
@@ -157,6 +168,7 @@ func TestCountView(t *testing.T) {
 		s3Client.On("GetObject", mock.Anything, mock.Anything).Return(&s3.GetObjectOutput{
 			Body: file,
 		}, nil)
+		dynamoDBClient.On("GetItem", mock.Anything, mock.Anything).Return(&dynamodb.GetItemOutput{}, nil)
 
 		err = handler.HandleRequest(context.Background(), event)
 		assert.NoError(t, err, "expected no error while handling request")
