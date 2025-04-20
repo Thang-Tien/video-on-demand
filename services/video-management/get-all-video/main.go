@@ -240,6 +240,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 			}, nil
 		}
 	} else if nextToken != "" {
@@ -249,6 +250,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusBadRequest,
 				Body:       fmt.Sprintf("Invalid nextToken format: %v", err),
+				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 			}, nil
 		}
 
@@ -257,6 +259,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusBadRequest,
 				Body:       "nextToken has expired",
+				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 			}, nil
 		}
 
@@ -272,6 +275,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusInternalServerError,
 					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 				}, nil
 			}
 		} else {
@@ -280,6 +284,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusInternalServerError,
 					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 				}, nil
 			}
 		}
@@ -291,6 +296,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       fmt.Sprintf("Failed to build expression: %v", err),
+			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 		}, nil
 	}
 
@@ -311,6 +317,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       fmt.Sprintf("Failed to scan DynamoDB: %v", err),
+			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 		}, nil
 	}
 
@@ -320,6 +327,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       fmt.Sprintf("Failed to unmarshal items: %v", err),
+			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 		}, nil
 	}
 
@@ -348,6 +356,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusInternalServerError,
 				Body:       fmt.Sprintf("Failed to encode nextToken: %v", err),
+				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 			}, nil
 		}
 	}
@@ -358,6 +367,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       fmt.Sprintf("Failed to marshal response: %v", err),
+			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 		}, nil
 	}
 
@@ -366,6 +376,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Body:       string(responseJSON),
+		Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 	}, nil
 }
 

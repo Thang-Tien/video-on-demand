@@ -92,7 +92,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       fmt.Sprintf("Invalid request body: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Invalid request body: %v", err),
 		}, nil
 	}
 
@@ -101,7 +104,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to marshal request: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to marshal request: %v", err),
 		}, nil
 	}
 
@@ -117,7 +123,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to build expression: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to build expression: %v", err),
 		}, nil
 	}
 
@@ -140,7 +149,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to update item in DynamoDB: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to update item in DynamoDB: %v", err),
 		}, nil
 	}
 
@@ -151,7 +163,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to unmarshal updated item: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to unmarshal updated item: %v", err),
 		}, nil
 	}
 
@@ -159,13 +174,20 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to marshal updated item to JSON: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to marshal updated item to JSON: %v", err),
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       string(updatedVideoInfoJSON),
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+			"Content-Type":                "application/json",
+		},
+		Body: string(updatedVideoInfoJSON),
 	}, nil
 }
 

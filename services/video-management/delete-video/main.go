@@ -40,12 +40,18 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to delete item: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to delete item: %v", err),
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}, nil
 }
 

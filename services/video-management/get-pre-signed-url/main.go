@@ -41,7 +41,10 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if !ok || fileName == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       "File name not provided in query parameters",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "File name not provided in query parameters",
 		}, nil
 	}
 
@@ -62,7 +65,10 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if userID == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       "Could not extract user ID from token",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Could not extract user ID from token",
 		}, nil
 	}
 
@@ -87,7 +93,10 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 		log.Printf("Error creating presigned URL: %v", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       "Failed to generate upload URL: " + err.Error(),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Failed to generate upload URL: " + err.Error(),
 		}, nil
 	}
 
@@ -100,14 +109,18 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       "Failed to generate response",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Failed to generate response",
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":                "application/json",
+			"Access-Control-Allow-Origin": "*",
 		},
 		Body: string(responseJSON),
 	}, nil
