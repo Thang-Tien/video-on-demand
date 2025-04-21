@@ -36,6 +36,7 @@ const (
 
 var errInvalidPageNumber = errors.New("invalid page number")
 
+// VideoInformation and other types remain the same...
 type VideoInformation struct {
 	PK                     string                      `json:"pk"`
 	SK                     string                      `json:"sk"`
@@ -196,7 +197,7 @@ type PaginationToken struct {
 }
 
 type DynamoDBClient interface {
-	Scan(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error)
+	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 }
 
 type Handler struct {
@@ -210,7 +211,6 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	// TODO: Validate request
 
 	// get query parameters
-	// get page number from query parameters
 	pageNumber, _ := strconv.Atoi(request.QueryStringParameters["pageNumber"])
 	if pageNumber <= 0 {
 		pageNumber = 1
@@ -231,15 +231,15 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	countries := parseCountries(request.QueryStringParameters["countries"])
 	productionYears := parseProductionYears(request.QueryStringParameters["productionYears"])
 
-	// if page number is provided but not nextToken, scan to that page
+	// if page number is provided but not nextToken, query to that page
 	var lastEvaluatedKey map[string]types.AttributeValue
 	if nextToken == "" {
 		var err error
-		lastEvaluatedKey, err = h.scanToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
+		lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+				Body:       fmt.Sprintf("Failed to query to page: %v", err),
 				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 			}, nil
 		}
@@ -265,32 +265,32 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 		// Create the last evaluated key from the decoded token
 		tokenLastEvaluatedKey := map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["PK"]},
 			"SK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["SK"]},
+			"PK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["PK"]},
 		}
 
 		if paginationToken.PageNumber > pageNumber {
-			lastEvaluatedKey, err = h.scanToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
+			lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
 			if err != nil {
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+					Body:       fmt.Sprintf("Failed to query to page: %v", err),
 					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 				}, nil
 			}
 		} else {
-			lastEvaluatedKey, err = h.scanToPage(ctx, paginationToken.PageNumber, pageNumber, pageSize, genres, casts, countries, productionYears, tokenLastEvaluatedKey)
+			lastEvaluatedKey, err = h.queryToPage(ctx, paginationToken.PageNumber, pageNumber, pageSize, genres, casts, countries, productionYears, tokenLastEvaluatedKey)
 			if err != nil {
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to scan to page: %v", err),
+					Body:       fmt.Sprintf("Failed to query to page: %v", err),
 					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 				}, nil
 			}
 		}
 	}
 
-	expr, err := buildFilterExpressionWithBuilder(genres, casts, countries, productionYears)
+	filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears)
 	if err != nil {
 		log.Printf("Failed to build expression: %v", err)
 		return events.APIGatewayProxyResponse{
@@ -300,23 +300,42 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
-	scanInput := &dynamodb.ScanInput{
-		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-		Limit:                     aws.Int32(int32(pageSize)),
-		ExclusiveStartKey:         lastEvaluatedKey,
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
+	keyCondExpr := expression.Key("SK").Equal(expression.Value("METADATA")).And(
+		expression.Key("PK").BeginsWith("VIDEO#"),
+	)
+
+	queryExpr, err := expression.NewBuilder().
+		WithKeyCondition(keyCondExpr).
+		WithFilter(filterExpr).
+		Build()
+	if err != nil {
+		log.Printf("Failed to build query expression: %v", err)
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Failed to build query expression: %v", err),
+			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
+		}, nil
 	}
 
-	jsonInput, _ := json.Marshal(scanInput)
-	log.Printf("ScanInput: %s", jsonInput)
+	queryInput := &dynamodb.QueryInput{
+		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
+		IndexName:                 aws.String("SK-PK-index"),
+		Limit:                     aws.Int32(int32(pageSize)),
+		ExclusiveStartKey:         lastEvaluatedKey,
+		KeyConditionExpression:    queryExpr.KeyCondition(),
+		FilterExpression:          queryExpr.Filter(),
+		ExpressionAttributeNames:  queryExpr.Names(),
+		ExpressionAttributeValues: queryExpr.Values(),
+	}
 
-	result, err := h.DynamoDBClient.Scan(ctx, scanInput)
+	jsonInput, _ := json.Marshal(queryInput)
+	log.Printf("QueryInput: %s", jsonInput)
+
+	result, err := h.DynamoDBClient.Query(ctx, queryInput)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to scan DynamoDB: %v", err),
+			Body:       fmt.Sprintf("Failed to query DynamoDB: %v", err),
 			Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 		}, nil
 	}
@@ -380,26 +399,41 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	}, nil
 }
 
-func (h *Handler) scanToPage(ctx context.Context, pageStart, pageNumber, pageSize int, genres, casts, countries, productionYears []string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
+func (h *Handler) queryToPage(ctx context.Context, pageStart, pageNumber, pageSize int, genres, casts, countries, productionYears []string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
 	for i := pageStart; i < pageNumber; i++ {
-		expr, err := buildFilterExpressionWithBuilder(genres, casts, countries, productionYears)
+		filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears)
 		if err != nil {
 			log.Printf("Failed to build expression: %v", err)
 			return nil, err
 		}
 
-		scanInput := &dynamodb.ScanInput{
-			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-			Limit:                     aws.Int32(int32(pageSize)),
-			ExclusiveStartKey:         lastEvaluatedKey,
-			FilterExpression:          expr.Filter(),
-			ExpressionAttributeNames:  expr.Names(),
-			ExpressionAttributeValues: expr.Values(),
+		keyCondExpr := expression.Key("SK").Equal(expression.Value("METADATA")).And(
+			expression.Key("PK").BeginsWith("VIDEO#"),
+		)
+
+		queryExpr, err := expression.NewBuilder().
+			WithKeyCondition(keyCondExpr).
+			WithFilter(filterExpr).
+			Build()
+		if err != nil {
+			log.Printf("Failed to build query expression: %v", err)
+			return nil, err
 		}
 
-		result, err := h.DynamoDBClient.Scan(ctx, scanInput)
+		queryInput := &dynamodb.QueryInput{
+			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
+			IndexName:                 aws.String("SK-PK-index"),
+			Limit:                     aws.Int32(int32(pageSize)),
+			ExclusiveStartKey:         lastEvaluatedKey,
+			KeyConditionExpression:    queryExpr.KeyCondition(),
+			FilterExpression:          queryExpr.Filter(),
+			ExpressionAttributeNames:  queryExpr.Names(),
+			ExpressionAttributeValues: queryExpr.Values(),
+		}
+
+		result, err := h.DynamoDBClient.Query(ctx, queryInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan DynamoDB: %w", err)
+			return nil, fmt.Errorf("failed to query DynamoDB: %w", err)
 		}
 
 		lastEvaluatedKey = result.LastEvaluatedKey
@@ -411,9 +445,9 @@ func (h *Handler) scanToPage(ctx context.Context, pageStart, pageNumber, pageSiz
 	return lastEvaluatedKey, nil
 }
 
-func buildFilterExpressionWithBuilder(genres, casts, countries, productionYears []string) (expression.Expression, error) {
-	// Base filter: PK begins with "VIDEO#" and SK equals "METADATA"
-	filter := expression.Name("PK").BeginsWith("VIDEO#").And(expression.Name("SK").Equal(expression.Value("METADATA")))
+func buildFilterExpression(genres, casts, countries, productionYears []string) (expression.ConditionBuilder, error) {
+	var filter expression.ConditionBuilder
+	var hasFilter bool
 
 	addORContains := func(field string, values []string) expression.ConditionBuilder {
 		var orCond expression.ConditionBuilder
@@ -429,20 +463,44 @@ func buildFilterExpressionWithBuilder(genres, casts, countries, productionYears 
 	}
 
 	if len(genres) > 0 {
-		filter = filter.And(addORContains("genres", genres))
+		if hasFilter {
+			filter = filter.And(addORContains("genres", genres))
+		} else {
+			filter = addORContains("genres", genres)
+			hasFilter = true
+		}
 	}
 	if len(casts) > 0 {
-		filter = filter.And(addORContains("casts", casts))
+		if hasFilter {
+			filter = filter.And(addORContains("casts", casts))
+		} else {
+			filter = addORContains("casts", casts)
+			hasFilter = true
+		}
 	}
 	if len(countries) > 0 {
-		filter = filter.And(addORContains("countryOfOrigin", countries))
+		if hasFilter {
+			filter = filter.And(addORContains("countryOfOrigin", countries))
+		} else {
+			filter = addORContains("countryOfOrigin", countries)
+			hasFilter = true
+		}
 	}
 	if len(productionYears) > 0 {
-		filter = filter.And(addORContains("productionYear", productionYears))
+		if hasFilter {
+			filter = filter.And(addORContains("productionYear", productionYears))
+		} else {
+			filter = addORContains("productionYear", productionYears)
+			hasFilter = true
+		}
 	}
 
-	// Return final expression
-	return expression.NewBuilder().WithFilter(filter).Build()
+	if !hasFilter {
+		// Return a condition that always evaluates to true
+		return expression.Name("PK").NotEqual(expression.Value("")), nil
+	}
+
+	return filter, nil
 }
 
 func parseGenres(input string) []string {
