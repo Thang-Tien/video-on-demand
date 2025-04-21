@@ -36,7 +36,6 @@ const (
 
 var errInvalidPageNumber = errors.New("invalid page number")
 
-// VideoInformation and other types remain the same...
 type VideoInformation struct {
 	PK                     string                      `json:"pk"`
 	SK                     string                      `json:"sk"`
