@@ -17,35 +17,32 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 )
 
 type VideoInformation struct {
-	PK                     string                      `json:"pk"`
-	SK                     string                      `json:"sk"`
-	StartTime              string                      `json:"startTime"`
-	WorkflowTrigger        string                      `json:"workflowTrigger"`
-	WorkflowStatus         string                      `json:"workflowStatus"`
-	WorkflowName           string                      `json:"workflowName"`
-	SrcBucket              string                      `json:"srcBucket"`
-	DestBucket             string                      `json:"destBucket"`
-	CloudFront             string                      `json:"cloudFront"`
-	FrameCapture           bool                        `json:"frameCapture"`
-	ArchiveSource          string                      `json:"archiveSource"`
-	JobTemplate2160p       string                      `json:"jobTemplate_2160p"`
-	JobTemplate1080p       string                      `json:"jobTemplate_1080p"`
-	JobTemplate720p        string                      `json:"jobTemplate_720p"`
-	InputRotate            string                      `json:"inputRotate"`
-	AcceleratedTranscoding string                      `json:"acceleratedTranscoding"`
-	EnableSns              bool                        `json:"enableSns"`
-	EnableSqs              bool                        `json:"enableSqs"`
-	SrcVideo               string                      `json:"srcVideo"`
-	EnableMediaPackage     bool                        `json:"enableMediaPackage"`
-	SrcMediainfo           string                      `json:"srcMediainfo"`
-	EncodingJob            mediaconvert.CreateJobInput `json:"encodingJob"`
-	EncodeJobId            string                      `json:"encodeJobId"`
-	EncodingOutput         EventDetail                 `json:"encodingOutput"`
-	EndTime                time.Time                   `json:"endTime"`
+	PK                     string    `json:"pk"`
+	SK                     string    `json:"sk"`
+	StartTime              string    `json:"startTime"`
+	WorkflowTrigger        string    `json:"workflowTrigger"`
+	WorkflowStatus         string    `json:"workflowStatus"`
+	WorkflowName           string    `json:"workflowName"`
+	SrcBucket              string    `json:"srcBucket"`
+	DestBucket             string    `json:"destBucket"`
+	CloudFront             string    `json:"cloudFront"`
+	FrameCapture           bool      `json:"frameCapture"`
+	ArchiveSource          string    `json:"archiveSource"`
+	JobTemplate2160p       string    `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string    `json:"jobTemplate_1080p"`
+	JobTemplate720p        string    `json:"jobTemplate_720p"`
+	InputRotate            string    `json:"inputRotate"`
+	AcceleratedTranscoding string    `json:"acceleratedTranscoding"`
+	EnableSns              bool      `json:"enableSns"`
+	EnableSqs              bool      `json:"enableSqs"`
+	SrcVideo               string    `json:"srcVideo"`
+	EnableMediaPackage     bool      `json:"enableMediaPackage"`
+	SrcMediainfo           string    `json:"srcMediainfo"`
+	EncodeJobId            string    `json:"encodeJobId"`
+	EndTime                time.Time `json:"endTime"`
 
 	// Output
 	HlsPlaylist            *string           `json:"hlsPlaylist"`
@@ -118,55 +115,9 @@ type CastMember struct {
 	CharacterName string
 }
 
-type EventDetail struct {
-	Timestamp          int64                `json:"timestamp"`
-	AccountId          string               `json:"accountId"`
-	Queue              string               `json:"queue"`
-	JobId              string               `json:"jobId"`
-	Status             string               `json:"status"`
-	UserMetadata       UserMetadata         `json:"userMetadata"`
-	OutputGroupDetails []*OutputGroupDetail `json:"outputGroupDetails"`
-	PaddingInserted    int64                `json:"paddingInserted"`
-	BlackVideoDetected int64                `json:"blackVideoDetected"`
-	Warnings           []*Warning           `json:"warnings"`
-}
-
-type Warning struct {
-	Code  int64 `json:"code"`
-	Count int64 `json:"count"`
-}
-
-type UserMetadata struct {
-	GUID     string `json:"guid"`
-	Workflow string `json:"workflow"`
-}
-
-type OutputGroupDetail struct {
-	OutputDetails     []*OutputDetail `json:"outputDetails"`
-	PlaylistFilePaths []*string       `json:"playlistFilePaths"`
-	Type              string          `json:"type"`
-}
-
-type OutputDetail struct {
-	OutputFilePaths []*string    `json:"outputFilePaths"`
-	DurationInMs    int64        `json:"durationInMs"`
-	VideoDetails    *VideoDetail `json:"videoDetails"`
-}
-
-type VideoDetail struct {
-	WidthInPx              int64   `json:"widthInPx"`
-	HeightInPx             int64   `json:"heightInPx"`
-	AverageBitrate         float64 `json:"averageBitrate"`
-	QvbrAvgQuality         float64 `json:"qvbrAvgQuality"`
-	QvbrMinQuality         float64 `json:"qvbrMinQuality"`
-	QvbrMaxQuality         float64 `json:"qvbrMaxQuality"`
-	QvbrMinQualityLocation float64 `json:"qvbrMinQualityLocation"`
-	QvbrMaxQualityLocation float64 `json:"qvbrMaxQualityLocation"`
-}
-
 type Response struct {
 	Videos []VideoInformation `json:"videos"`
-	Count  int                `json:"count"`
+	Count  int                 `json:"count"`
 }
 
 type DynamoDBClient interface {
@@ -204,9 +155,91 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		expression.Key("PK").BeginsWith("VIDEO#"),
 	)
 
+	// Create a projection expression to only retrieve the fields we need
+	// Create a projection expression to include all fields from VideoInformation
+	projExpr := expression.NamesList(
+		expression.Name("PK"),
+		expression.Name("SK"),
+		expression.Name("startTime"),
+		expression.Name("workflowTrigger"),
+		expression.Name("workflowStatus"),
+		expression.Name("workflowName"),
+		expression.Name("srcBucket"),
+		expression.Name("destBucket"),
+		expression.Name("cloudFront"),
+		expression.Name("frameCapture"),
+		expression.Name("archiveSource"),
+		expression.Name("jobTemplate_2160p"),
+		expression.Name("jobTemplate_1080p"),
+		expression.Name("jobTemplate_720p"),
+		expression.Name("inputRotate"),
+		expression.Name("acceleratedTranscoding"),
+		expression.Name("enableSns"),
+		expression.Name("enableSqs"),
+		expression.Name("srcVideo"),
+		expression.Name("enableMediaPackage"),
+		expression.Name("srcMediainfo"),
+		expression.Name("encodeJobId"),
+		expression.Name("endTime"),
+		expression.Name("hlsPlaylist"),
+		expression.Name("hlsUrl"),
+		expression.Name("dashPlaylist"),
+		expression.Name("dashUrl"),
+		expression.Name("mp4Outputs"),
+		expression.Name("mp4Urls"),
+		expression.Name("mssPlaylist"),
+		expression.Name("mssUrl"),
+		expression.Name("cmafDashPlaylist"),
+		expression.Name("cmafDashUrl"),
+		expression.Name("cmafHlsPlaylist"),
+		expression.Name("cmafHlsUrl"),
+		expression.Name("thumbNails"),
+		expression.Name("thumbNailsUrls"),
+		expression.Name("mediaPackageResourceId"),
+		expression.Name("egressEndpoints"),
+		expression.Name("title"),
+		expression.Name("originalTitle"),
+		expression.Name("description"),
+		expression.Name("plotSummary"),
+		expression.Name("releaseDate"),
+		expression.Name("productionYear"),
+		expression.Name("languages"),
+		expression.Name("countryOfOrigin"),
+		expression.Name("ageRating"),
+		expression.Name("directors"),
+		expression.Name("producers"),
+		expression.Name("writers"),
+		expression.Name("cast"),
+		expression.Name("cinematographer"),
+		expression.Name("musicComposer"),
+		expression.Name("editor"),
+		expression.Name("productionDesigner"),
+		expression.Name("costumeDesigner"),
+		expression.Name("subtitleLanguages"),
+		expression.Name("genres"),
+		expression.Name("tags"),
+		expression.Name("themes"),
+		expression.Name("seriesInformation"),
+		expression.Name("sequelPrequel"),
+		expression.Name("similarMovies"),
+		expression.Name("posterUrls"),
+		expression.Name("trailerUrls"),
+		expression.Name("behindTheScenes"),
+		expression.Name("commentaryTracks"),
+		expression.Name("deletedScenes"),
+		expression.Name("interviews"),
+		expression.Name("awards"),
+		expression.Name("criticRatings"),
+		expression.Name("userRating"),
+		expression.Name("boxOfficePerformance"),
+		expression.Name("views"),
+	)
+
+	// Build the query expression with the key condition, filter and projection
 	queryExpr, err := expression.NewBuilder().
 		WithKeyCondition(keyCondExpr).
 		WithFilter(filterExpr).
+		WithProjection(projExpr).
 		Build()
 	if err != nil {
 		log.Printf("Failed to build query expression: %v", err)
@@ -222,6 +255,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		IndexName:                 aws.String("SK-PK-index"),
 		KeyConditionExpression:    queryExpr.KeyCondition(),
 		FilterExpression:          queryExpr.Filter(),
+		ProjectionExpression:      queryExpr.Projection(),
 		ExpressionAttributeNames:  queryExpr.Names(),
 		ExpressionAttributeValues: queryExpr.Values(),
 	}
