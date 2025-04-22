@@ -2,18 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,17 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 )
-
-const (
-	DEFAULT_PAGE_SIZE = 5
-	MAX_PAGE_SIZE     = 20
-	TOKEN_EXPIRY_MINS = 60 // Token expiry time in minutes
-)
-
-var errInvalidPageNumber = errors.New("invalid page number")
 
 type VideoInformation struct {
 	PK                     string                      `json:"pk"`
@@ -181,18 +165,8 @@ type VideoDetail struct {
 }
 
 type Response struct {
-	Videos     []VideoInformation `json:"videos"`
-	Count      int                `json:"count"`
-	TotalCount int                `json:"totalCount,omitempty"` // Optional, requires a separate count query
-	NextToken  string             `json:"nextToken,omitempty"`
-	PageNumber int                `json:"pageNumber"`
-	PagesCount int                `json:"pagesCount,omitempty"` // Optional, requires knowing total count
-}
-
-type PaginationToken struct {
-	LastEvaluatedKey map[string]string `json:"lastEvaluatedKey"`
-	ExpiresAt        int64             `json:"expiresAt"`
-	PageNumber       int               `json:"pageNumber,omitempty"`
+	Videos []VideoInformation `json:"videos"`
+	Count  int                `json:"count"`
 }
 
 type DynamoDBClient interface {
@@ -209,85 +183,11 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 	// TODO: Validate request
 
-	// get query parameters
-	pageNumber, _ := strconv.Atoi(request.QueryStringParameters["pageNumber"])
-	if pageNumber <= 0 {
-		pageNumber = 1
-	}
-
-	pageSize, _ := strconv.Atoi(request.QueryStringParameters["pageSize"])
-	if pageSize <= 0 {
-		pageSize = DEFAULT_PAGE_SIZE
-	} else if pageSize > MAX_PAGE_SIZE {
-		pageSize = MAX_PAGE_SIZE
-	}
-
-	nextToken := request.QueryStringParameters["nextToken"]
-
 	// search terms
 	genres := parseGenres(request.QueryStringParameters["genres"])
 	casts := parseCasts(request.QueryStringParameters["casts"])
 	countries := parseCountries(request.QueryStringParameters["countries"])
 	productionYears := parseProductionYears(request.QueryStringParameters["productionYears"])
-
-	// if page number is provided but not nextToken, query to that page
-	var lastEvaluatedKey map[string]types.AttributeValue
-	if nextToken == "" {
-		var err error
-		lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to query to page: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-	} else if nextToken != "" {
-		// Decode the nextToken to get the last evaluated key
-		paginationToken, err := decodeNextToken(nextToken)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusBadRequest,
-				Body:       fmt.Sprintf("Invalid nextToken format: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-
-		// Check if the token is expired
-		if time.Now().Unix() > paginationToken.ExpiresAt {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusBadRequest,
-				Body:       "nextToken has expired",
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-
-		// Create the last evaluated key from the decoded token
-		tokenLastEvaluatedKey := map[string]types.AttributeValue{
-			"SK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["SK"]},
-			"PK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["PK"]},
-		}
-
-		if paginationToken.PageNumber > pageNumber {
-			lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, genres, casts, countries, productionYears, nil)
-			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to query to page: %v", err),
-					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-				}, nil
-			}
-		} else {
-			lastEvaluatedKey, err = h.queryToPage(ctx, paginationToken.PageNumber, pageNumber, pageSize, genres, casts, countries, productionYears, tokenLastEvaluatedKey)
-			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to query to page: %v", err),
-					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-				}, nil
-			}
-		}
-	}
 
 	filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears)
 	if err != nil {
@@ -299,6 +199,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
+	// Create key condition expression for the GSI where SK is the partition key and PK is the sort key
 	keyCondExpr := expression.Key("SK").Equal(expression.Value("METADATA")).And(
 		expression.Key("PK").BeginsWith("VIDEO#"),
 	)
@@ -319,8 +220,6 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	queryInput := &dynamodb.QueryInput{
 		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
 		IndexName:                 aws.String("SK-PK-index"),
-		Limit:                     aws.Int32(int32(pageSize)),
-		ExclusiveStartKey:         lastEvaluatedKey,
 		KeyConditionExpression:    queryExpr.KeyCondition(),
 		FilterExpression:          queryExpr.Filter(),
 		ExpressionAttributeNames:  queryExpr.Names(),
@@ -350,36 +249,10 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	}
 
 	response := Response{
-		Videos:     videos,
-		Count:      len(videos),
-		PageNumber: pageNumber,
+		Videos: videos,
+		Count:  len(videos),
 	}
 
-	// Add nextToken if there are more results
-	if result.LastEvaluatedKey != nil {
-		lastKey := PaginationToken{
-			LastEvaluatedKey: make(map[string]string),
-			ExpiresAt:        time.Now().Add(TOKEN_EXPIRY_MINS * time.Minute).Unix(),
-			PageNumber:       pageNumber + 1,
-		}
-		if pk, ok := result.LastEvaluatedKey["PK"].(*types.AttributeValueMemberS); ok {
-			lastKey.LastEvaluatedKey["PK"] = pk.Value
-		}
-		if sk, ok := result.LastEvaluatedKey["SK"].(*types.AttributeValueMemberS); ok {
-			lastKey.LastEvaluatedKey["SK"] = sk.Value
-		}
-
-		response.NextToken, err = encodeNextToken(lastKey)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to encode nextToken: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-	}
-
-	// Convert response to JSON
 	responseJSON, err := json.Marshal(response)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -396,52 +269,6 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		Body:       string(responseJSON),
 		Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
 	}, nil
-}
-
-func (h *Handler) queryToPage(ctx context.Context, pageStart, pageNumber, pageSize int, genres, casts, countries, productionYears []string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
-	for i := pageStart; i < pageNumber; i++ {
-		filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears)
-		if err != nil {
-			log.Printf("Failed to build expression: %v", err)
-			return nil, err
-		}
-
-		keyCondExpr := expression.Key("SK").Equal(expression.Value("METADATA")).And(
-			expression.Key("PK").BeginsWith("VIDEO#"),
-		)
-
-		queryExpr, err := expression.NewBuilder().
-			WithKeyCondition(keyCondExpr).
-			WithFilter(filterExpr).
-			Build()
-		if err != nil {
-			log.Printf("Failed to build query expression: %v", err)
-			return nil, err
-		}
-
-		queryInput := &dynamodb.QueryInput{
-			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-			IndexName:                 aws.String("SK-PK-index"),
-			Limit:                     aws.Int32(int32(pageSize)),
-			ExclusiveStartKey:         lastEvaluatedKey,
-			KeyConditionExpression:    queryExpr.KeyCondition(),
-			FilterExpression:          queryExpr.Filter(),
-			ExpressionAttributeNames:  queryExpr.Names(),
-			ExpressionAttributeValues: queryExpr.Values(),
-		}
-
-		result, err := h.DynamoDBClient.Query(ctx, queryInput)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query DynamoDB: %w", err)
-		}
-
-		lastEvaluatedKey = result.LastEvaluatedKey
-		if lastEvaluatedKey == nil {
-			return nil, errInvalidPageNumber
-		}
-	}
-
-	return lastEvaluatedKey, nil
 }
 
 func buildFilterExpression(genres, casts, countries, productionYears []string) (expression.ConditionBuilder, error) {
@@ -495,8 +322,9 @@ func buildFilterExpression(genres, casts, countries, productionYears []string) (
 	}
 
 	if !hasFilter {
-		// Return a condition that always evaluates to true
-		return expression.Name("PK").NotEqual(expression.Value("")), nil
+		// Return a condition that will always be true, using a non-key attribute
+		// We're checking if workflowName attribute exists which should be true for all items
+		return expression.AttributeExists(expression.Name("workflowName")), nil
 	}
 
 	return filter, nil
@@ -532,87 +360,6 @@ func parseProductionYears(input string) []string {
 	}
 	productionYears := strings.Split(input, ",")
 	return productionYears
-}
-
-// encodeNextToken encrypts and base64 encodes a pagination token
-func encodeNextToken(token PaginationToken) (string, error) {
-	var encryptionKey = []byte(os.Getenv("EncryptionKey"))
-
-	// Marshal the token to JSON
-	tokenBytes, err := json.Marshal(token)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a new AES cipher block
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a GCM cipher
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a nonce
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	// Encrypt the data
-	ciphertext := gcm.Seal(nonce, nonce, tokenBytes, nil)
-
-	// Base64 encode the result
-	return base64.URLEncoding.EncodeToString(ciphertext), nil
-}
-
-// decodeNextToken decrypts and decodes a base64 encoded pagination token
-func decodeNextToken(encodedToken string) (PaginationToken, error) {
-	var encryptionKey = []byte(os.Getenv("EncryptionKey"))
-
-	var token PaginationToken
-
-	// Base64 decode the token
-	ciphertext, err := base64.URLEncoding.DecodeString(encodedToken)
-	if err != nil {
-		return token, err
-	}
-
-	// Create a new AES cipher block
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		return token, err
-	}
-
-	// Create a GCM cipher
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return token, err
-	}
-
-	// Check that the ciphertext is long enough
-	if len(ciphertext) < gcm.NonceSize() {
-		return token, errors.New("ciphertext too short")
-	}
-
-	// Extract the nonce
-	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]
-
-	// Decrypt the data
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return token, err
-	}
-
-	// Unmarshal the JSON
-	if err := json.Unmarshal(plaintext, &token); err != nil {
-		return token, err
-	}
-
-	return token, nil
 }
 
 func main() {
