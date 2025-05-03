@@ -2,18 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -26,13 +19,113 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-const (
-	DEFAULT_PAGE_SIZE = 5
-	MAX_PAGE_SIZE     = 20
-	TOKEN_EXPIRY_MINS = 60 // Token expiry time in minutes
-)
+type VideoInformation struct {
+	PK                     string    `json:"pk"`
+	SK                     string    `json:"sk"`
+	StartTime              string    `json:"startTime"`
+	WorkflowTrigger        string    `json:"workflowTrigger"`
+	WorkflowStatus         string    `json:"workflowStatus"`
+	WorkflowName           string    `json:"workflowName"`
+	SrcBucket              string    `json:"srcBucket"`
+	DestBucket             string    `json:"destBucket"`
+	CloudFront             string    `json:"cloudFront"`
+	FrameCapture           bool      `json:"frameCapture"`
+	ArchiveSource          string    `json:"archiveSource"`
+	JobTemplate2160p       string    `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string    `json:"jobTemplate_1080p"`
+	JobTemplate720p        string    `json:"jobTemplate_720p"`
+	InputRotate            string    `json:"inputRotate"`
+	AcceleratedTranscoding string    `json:"acceleratedTranscoding"`
+	EnableSns              bool      `json:"enableSns"`
+	EnableSqs              bool      `json:"enableSqs"`
+	SrcVideo               string    `json:"srcVideo"`
+	EnableMediaPackage     bool      `json:"enableMediaPackage"`
+	SrcMediainfo           string    `json:"srcMediainfo"`
+	EncodeJobId            string    `json:"encodeJobId"`
+	EndTime                time.Time `json:"endTime"`
 
-var errInvalidPageNumber = errors.New("invalid page number")
+	// Output
+	HlsPlaylist            *string           `json:"hlsPlaylist"`
+	HlsUrl                 *string           `json:"hlsUrl"`
+	DashPlaylist           *string           `json:"dashPlaylist"`
+	DashUrl                *string           `json:"dashUrl"`
+	Mp4Outputs             []*string         `json:"mp4Outputs"`
+	Mp4Urls                []*string         `json:"mp4Urls"`
+	MssPlaylist            *string           `json:"mssPlaylist"`
+	MssUrl                 *string           `json:"mssUrl"`
+	CmafDashPlaylist       *string           `json:"cmafDashPlaylist"`
+	CmafDashUrl            *string           `json:"cmafDashUrl"`
+	CmafHlsPlaylist        *string           `json:"cmafHlsPlaylist"`
+	CmafHlsUrl             *string           `json:"cmafHlsUrl"`
+	ThumbNails             []*string         `json:"thumbNails"`
+	ThumbNailsUrls         []*string         `json:"thumbNailsUrls"`
+	MediaPackageResourceId string            `json:"mediaPackageResourceId"`
+	EgressEndpoints        map[string]string `json:"egressEndpoints"`
+
+	// Basic Information
+	Title           *string    `json:"title"`
+	OriginalTitle   *string    `json:"originalTitle"`
+	Description     *string    `json:"description"`
+	PlotSummary     *string    `json:"plotSummary"`
+	ReleaseDate     *time.Time `json:"releaseDate"`
+	ProductionYear  *int       `json:"productionYear"`
+	Languages       *[]string  `json:"languages"`
+	CountryOfOrigin *string    `json:"countryOfOrigin"`
+	AgeRating       *string    `json:"ageRating"`
+
+	// Creative Elements
+	Directors          *[]string     `json:"directors"`
+	Producers          *[]string     `json:"producers"`
+	Writers            *[]string     `json:"writers"`
+	Cast               *[]CastMember `json:"cast"`
+	Cinematographer    *string       `json:"cinematographer"`
+	MusicComposer      *string       `json:"musicComposer"`
+	Editor             *string       `json:"editor"`
+	ProductionDesigner *string       `json:"productionDesigner"`
+	CostumeDesigner    *string       `json:"costumeDesigner"`
+
+	// Technical Information
+	SubtitleLanguages *[]string `json:"subtitleLanguages"`
+
+	// Categorization
+	Genres            *[]string          `json:"genres"`
+	Tags              *[]string          `json:"tags"`
+	Themes            *[]string          `json:"themes"`
+	SeriesInformation *SeriesInfo        `json:"seriesInformation"`
+	SequelPrequel     *SequelPrequelInfo `json:"sequelPrequel"`
+	SimilarMovies     *[]string          `json:"similarMovies"`
+
+	// Supplementary Content
+	PosterURLs       *[]string `json:"posterUrls"`
+	TrailerURLs      *[]string `json:"trailerUrls"`
+	BehindTheScenes  *[]string `json:"behindTheScenes"`
+	CommentaryTracks *[]string `json:"commentaryTracks"`
+	DeletedScenes    *[]string `json:"deletedScenes"`
+	Interviews       *[]string `json:"interviews"`
+
+	// Reception and Metrics
+	Awards               *[]string           `json:"awards"`
+	CriticRatings        *map[string]float64 `json:"criticRatings"`
+	UserRating           *float64            `json:"userRating"`
+	BoxOfficePerformance *float64            `json:"boxOfficePerformance"`
+	Views                *int                `json:"views"`
+}
+
+type CastMember struct {
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type SeriesInfo struct {
+	Franchise          string `json:"franchise"`
+	ChronologicalOrder int    `json:"chronologicalOrder"`
+	ReleaseOrder       int    `json:"releaseOrder"`
+}
+
+type SequelPrequelInfo struct {
+	Prequels []string `json:"prequels"`
+	Sequels  []string `json:"sequels"`
+}
 
 type Views struct {
 	PK      string `json:"PK"`
@@ -40,111 +133,34 @@ type Views struct {
 	VideoID string `json:"videoId"`
 }
 
+// New response structure that includes full video details
+type VideoWithViews struct {
+	Views       Views            `json:"views"`
+	Information VideoInformation `json:"information"`
+}
+
 type Response struct {
-	Videos     []Views `json:"views"`
-	Count      int     `json:"count"`
-	TotalCount int     `json:"totalCount,omitempty"` // Optional, requires a separate count query
-	NextToken  string  `json:"nextToken,omitempty"`
-	PageNumber int     `json:"pageNumber"`
-	PagesCount int     `json:"pagesCount,omitempty"` // Optional, requires knowing total count
+	Videos []VideoWithViews `json:"videos"`
+	Count  int              `json:"count"`
 }
 
-type PaginationToken struct {
-	LastEvaluatedKey map[string]string `json:"lastEvaluatedKey"`
-	ExpiresAt        int64             `json:"expiresAt"`
-	PageNumber       int               `json:"pageNumber,omitempty"`
-}
-
+// Modified DynamoDBClient interface to include GetItem for fetching individual videos
 type DynamoDBClient interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
 type Handler struct {
 	DynamoDBClient DynamoDBClient
 }
 
+// Modified to get full video information for each trending video
 func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	requestJSON, _ := json.Marshal(request)
 	log.Printf("Request: %s", requestJSON)
 
-	// TODO: Validate request
-
-	// get query parameters
-	// get page number from query parameters
-	pageNumber, _ := strconv.Atoi(request.QueryStringParameters["pageNumber"])
-	if pageNumber <= 0 {
-		pageNumber = 1
-	}
-
-	pageSize, _ := strconv.Atoi(request.QueryStringParameters["pageSize"])
-	if pageSize <= 0 {
-		pageSize = DEFAULT_PAGE_SIZE
-	} else if pageSize > MAX_PAGE_SIZE {
-		pageSize = MAX_PAGE_SIZE
-	}
-
-	nextToken := request.QueryStringParameters["nextToken"]
-
+	// Validate request
 	monthAndYear := request.QueryStringParameters["monthAndYear"]
-
-	// if page number is provided but not nextToken, query to that page
-	var lastEvaluatedKey map[string]types.AttributeValue
-	if nextToken == "" {
-		var err error
-		lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, monthAndYear, nil)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to query to page: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-	} else if nextToken != "" {
-		// Decode the nextToken to get the last evaluated key
-		paginationToken, err := decodeNextToken(nextToken)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusBadRequest,
-				Body:       fmt.Sprintf("Invalid nextToken format: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-
-		// Check if the token is expired
-		if time.Now().Unix() > paginationToken.ExpiresAt {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusBadRequest,
-				Body:       "nextToken has expired",
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
-
-		// Create the last evaluated key from the decoded token
-		tokenLastEvaluatedKey := map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["PK"]},
-			"SK": &types.AttributeValueMemberS{Value: paginationToken.LastEvaluatedKey["SK"]},
-		}
-
-		if paginationToken.PageNumber > pageNumber {
-			lastEvaluatedKey, err = h.queryToPage(ctx, 1, pageNumber, pageSize, monthAndYear, nil)
-			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to query to page: %v", err),
-					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-				}, nil
-			}
-		} else {
-			lastEvaluatedKey, err = h.queryToPage(ctx, paginationToken.PageNumber, pageNumber, pageSize, monthAndYear, tokenLastEvaluatedKey)
-			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode: http.StatusInternalServerError,
-					Body:       fmt.Sprintf("Failed to query to page: %v", err),
-					Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-				}, nil
-			}
-		}
-	}
 
 	expr, err := buildKeyConditionExpression(monthAndYear)
 	if err != nil {
@@ -158,8 +174,6 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 	queryInput := &dynamodb.QueryInput{
 		TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-		Limit:                     aws.Int32(int32(pageSize)),
-		ExclusiveStartKey:         lastEvaluatedKey,
 		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
@@ -188,34 +202,31 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
-	response := Response{
-		Videos:     views,
-		Count:      len(views),
-		PageNumber: pageNumber,
+	// Get detailed information for each video
+	videosWithDetails := []VideoWithViews{}
+
+	for _, view := range views {
+		// Extract videoId from the view item
+		videoID := view.VideoID
+
+		// Get full video information
+		videoInfo, err := h.getVideoInformation(ctx, videoID)
+		if err != nil {
+			log.Printf("Error retrieving video information for %s: %v", videoID, err)
+			continue
+		}
+
+		// Add to result list
+		videosWithDetails = append(videosWithDetails, VideoWithViews{
+			Views:       view,
+			Information: videoInfo,
+		})
 	}
 
-	// Add nextToken if there are more results
-	if result.LastEvaluatedKey != nil {
-		lastKey := PaginationToken{
-			LastEvaluatedKey: make(map[string]string),
-			ExpiresAt:        time.Now().Add(TOKEN_EXPIRY_MINS * time.Minute).Unix(),
-			PageNumber:       pageNumber + 1,
-		}
-		if pk, ok := result.LastEvaluatedKey["PK"].(*types.AttributeValueMemberS); ok {
-			lastKey.LastEvaluatedKey["PK"] = pk.Value
-		}
-		if sk, ok := result.LastEvaluatedKey["SK"].(*types.AttributeValueMemberS); ok {
-			lastKey.LastEvaluatedKey["SK"] = sk.Value
-		}
-
-		response.NextToken, err = encodeNextToken(lastKey)
-		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       fmt.Sprintf("Failed to encode nextToken: %v", err),
-				Headers:    map[string]string{"Access-Control-Allow-Origin": "*"},
-			}, nil
-		}
+	// Prepare the enhanced response
+	response := Response{
+		Videos: videosWithDetails,
+		Count:  len(videosWithDetails),
 	}
 
 	// Convert response to JSON
@@ -237,36 +248,33 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	}, nil
 }
 
-func (h *Handler) queryToPage(ctx context.Context, pageStart, pageNumber, pageSize int, monthAndYear string, lastEvaluatedKey map[string]types.AttributeValue) (map[string]types.AttributeValue, error) {
-	for i := pageStart; i < pageNumber; i++ {
-		expr, err := buildKeyConditionExpression(monthAndYear)
-		if err != nil {
-			log.Printf("Failed to build key condition expression: %v", err)
-			return nil, err
-		}
+// Helper function to get full video information for a given videoId
+func (h *Handler) getVideoInformation(ctx context.Context, videoID string) (VideoInformation, error) {
+	var videoInfo VideoInformation
 
-		queryInput := &dynamodb.QueryInput{
-			TableName:                 aws.String(os.Getenv("DynamoDBTable")),
-			Limit:                     aws.Int32(int32(pageSize)),
-			ExclusiveStartKey:         lastEvaluatedKey,
-			KeyConditionExpression:    expr.KeyCondition(),
-			ExpressionAttributeNames:  expr.Names(),
-			ExpressionAttributeValues: expr.Values(),
-			ScanIndexForward:          aws.Bool(false), // Descending order
-		}
-
-		result, err := h.DynamoDBClient.Query(ctx, queryInput)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query DynamoDB: %w", err)
-		}
-
-		lastEvaluatedKey = result.LastEvaluatedKey
-		if lastEvaluatedKey == nil {
-			return nil, errInvalidPageNumber
-		}
+	// First get the video information
+	videoResult, err := h.DynamoDBClient.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(os.Getenv("DynamoDBTable")),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "VIDEO#" + videoID},
+			"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+		},
+	})
+	if err != nil {
+		return videoInfo, fmt.Errorf("failed to get video information: %w", err)
 	}
 
-	return lastEvaluatedKey, nil
+	if videoResult.Item == nil {
+		return videoInfo, fmt.Errorf("video not found")
+	}
+
+	// Unmarshal the video information
+	err = attributevalue.UnmarshalMap(videoResult.Item, &videoInfo)
+	if err != nil {
+		return videoInfo, fmt.Errorf("failed to unmarshal video information: %w", err)
+	}
+
+	return videoInfo, nil
 }
 
 func buildKeyConditionExpression(monthAndYear string) (expression.Expression, error) {
@@ -289,90 +297,9 @@ func buildKeyConditionExpression(monthAndYear string) (expression.Expression, er
 	return expression.NewBuilder().WithKeyCondition(keyCondition).Build()
 }
 
-// encodeNextToken encrypts and base64 encodes a pagination token
-func encodeNextToken(token PaginationToken) (string, error) {
-	var encryptionKey = []byte(os.Getenv("EncryptionKey"))
-
-	// Marshal the token to JSON
-	tokenBytes, err := json.Marshal(token)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a new AES cipher block
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a GCM cipher
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a nonce
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	// Encrypt the data
-	ciphertext := gcm.Seal(nonce, nonce, tokenBytes, nil)
-
-	// Base64 encode the result
-	return base64.URLEncoding.EncodeToString(ciphertext), nil
-}
-
-// decodeNextToken decrypts and decodes a base64 encoded pagination token
-func decodeNextToken(encodedToken string) (PaginationToken, error) {
-	var encryptionKey = []byte(os.Getenv("EncryptionKey"))
-
-	var token PaginationToken
-
-	// Base64 decode the token
-	ciphertext, err := base64.URLEncoding.DecodeString(encodedToken)
-	if err != nil {
-		return token, err
-	}
-
-	// Create a new AES cipher block
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		return token, err
-	}
-
-	// Create a GCM cipher
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return token, err
-	}
-
-	// Check that the ciphertext is long enough
-	if len(ciphertext) < gcm.NonceSize() {
-		return token, errors.New("ciphertext too short")
-	}
-
-	// Extract the nonce
-	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]
-
-	// Decrypt the data
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return token, err
-	}
-
-	// Unmarshal the JSON
-	if err := json.Unmarshal(plaintext, &token); err != nil {
-		return token, err
-	}
-
-	return token, nil
-}
-
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

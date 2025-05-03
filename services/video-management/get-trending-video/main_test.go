@@ -25,6 +25,13 @@ func (m *DynamoDBClientMock) Query(ctx context.Context, params *dynamodb.QueryIn
 	return args.Get(0).(*dynamodb.QueryOutput), args.Error(1)
 }
 
+func (m *DynamoDBClientMock) GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dynamodb.GetItemOutput), args.Error(1)
+}
 func TestGetTrendingVideo(t *testing.T) {
 	os.Setenv("EncryptionKey", "................................")
 	t.Run("should success get trending video", func(t *testing.T) {
@@ -47,6 +54,8 @@ func TestGetTrendingVideo(t *testing.T) {
 				"SK": &types.AttributeValueMemberS{Value: "METADATA"},
 			},
 		}, nil)
+
+		dynamoDBClient.On("GetItem", mock.Anything, mock.Anything).Return(&dynamodb.GetItemOutput{}, nil)
 
 		res, err := handler.HandleRequest(context.Background(), event)
 		if err != nil {
