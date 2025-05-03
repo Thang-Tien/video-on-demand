@@ -20,8 +20,10 @@ import (
 )
 
 type VideoInformation struct {
-	PK                     string    `json:"pk"`
-	SK                     string    `json:"sk"`
+	PK string `json:"PK"` // VIDEO#{videoId}
+	SK string `json:"SK"` // METADATA
+
+	// Metadata Information
 	StartTime              string    `json:"startTime"`
 	WorkflowTrigger        string    `json:"workflowTrigger"`
 	WorkflowStatus         string    `json:"workflowStatus"`
@@ -61,6 +63,7 @@ type VideoInformation struct {
 	ThumbNailsUrls         []*string         `json:"thumbNailsUrls"`
 	MediaPackageResourceId string            `json:"mediaPackageResourceId"`
 	EgressEndpoints        map[string]string `json:"egressEndpoints"`
+
 	// Basic Information
 	Title           *string    `json:"title"`
 	OriginalTitle   *string    `json:"originalTitle"`
@@ -87,12 +90,12 @@ type VideoInformation struct {
 	SubtitleLanguages *[]string `json:"subtitleLanguages"`
 
 	// Categorization
-	Genres            *[]string `json:"genres"`
-	Tags              *[]string `json:"tags"`
-	Themes            *[]string `json:"themes"`
-	SeriesInformation *string   `json:"seriesInformation"`
-	SequelPrequel     *string   `json:"sequelPrequel"`
-	SimilarMovies     *[]string `json:"similarMovies"`
+	Genres            *[]string          `json:"genres"`
+	Tags              *[]string          `json:"tags"`
+	Themes            *[]string          `json:"themes"`
+	SeriesInformation *SeriesInfo        `json:"seriesInformation"`
+	SequelPrequel     *SequelPrequelInfo `json:"sequelPrequel"`
+	SimilarMovies     *[]string          `json:"similarMovies"`
 
 	// Supplementary Content
 	PosterURLs       *[]string `json:"posterUrls"`
@@ -111,13 +114,24 @@ type VideoInformation struct {
 }
 
 type CastMember struct {
-	ActorName     string
-	CharacterName string
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type SeriesInfo struct {
+	Franchise          string `json:"franchise"`
+	ChronologicalOrder int    `json:"chronologicalOrder"`
+	ReleaseOrder       int    `json:"releaseOrder"`
+}
+
+type SequelPrequelInfo struct {
+	Prequels []string `json:"prequels"`
+	Sequels  []string `json:"sequels"`
 }
 
 type Response struct {
 	Videos []VideoInformation `json:"videos"`
-	Count  int                 `json:"count"`
+	Count  int                `json:"count"`
 }
 
 type DynamoDBClient interface {
@@ -139,8 +153,9 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	casts := parseCasts(request.QueryStringParameters["casts"])
 	countries := parseCountries(request.QueryStringParameters["countries"])
 	productionYears := parseProductionYears(request.QueryStringParameters["productionYears"])
+	title := parseTitle(request.QueryStringParameters["title"])
 
-	filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears)
+	filterExpr, err := buildFilterExpression(genres, casts, countries, productionYears, title)
 	if err != nil {
 		log.Printf("Failed to build expression: %v", err)
 		return events.APIGatewayProxyResponse{
@@ -305,7 +320,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	}, nil
 }
 
-func buildFilterExpression(genres, casts, countries, productionYears []string) (expression.ConditionBuilder, error) {
+func buildFilterExpression(genres, casts, countries, productionYears []string, title string) (expression.ConditionBuilder, error) {
 	var filter expression.ConditionBuilder
 	var hasFilter bool
 
@@ -354,6 +369,15 @@ func buildFilterExpression(genres, casts, countries, productionYears []string) (
 			hasFilter = true
 		}
 	}
+	if title != "" {
+		titleCond := expression.Name("title").Contains(title)
+		if hasFilter {
+			filter = filter.And(titleCond)
+		} else {
+			filter = titleCond
+			hasFilter = true
+		}
+	}
 
 	if !hasFilter {
 		// Return a condition that will always be true, using a non-key attribute
@@ -396,9 +420,13 @@ func parseProductionYears(input string) []string {
 	return productionYears
 }
 
+func parseTitle(input string) string {
+	return strings.TrimSpace(input)
+}
+
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

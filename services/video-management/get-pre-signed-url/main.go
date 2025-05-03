@@ -49,7 +49,7 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	}
 
 	// Extract user ID from principalId
-	// The principalId is expected in format: vodapi::User::"ap-southeast-2_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
+	// The principalId is expected in format: vodapi::User::"ap-southeast-1_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
 	var userID string
 	if principalID, ok := request.RequestContext.Authorizer["principalId"].(string); ok {
 		// Find the last pipe character and extract the UUID part
@@ -129,7 +129,7 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 func main() {
 	// Create an S3 client
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

@@ -57,7 +57,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

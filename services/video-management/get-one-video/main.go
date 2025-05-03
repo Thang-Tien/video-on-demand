@@ -16,36 +16,32 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/mediaconvert"
 )
 
-// VideoInformation struct (same as your existing struct)
 type VideoInformation struct {
-	PK                     string                      `json:"pk"`
-	SK                     string                      `json:"sk"`
-	StartTime              string                      `json:"startTime"`
-	WorkflowTrigger        string                      `json:"workflowTrigger"`
-	WorkflowStatus         string                      `json:"workflowStatus"`
-	WorkflowName           string                      `json:"workflowName"`
-	SrcBucket              string                      `json:"srcBucket"`
-	DestBucket             string                      `json:"destBucket"`
-	CloudFront             string                      `json:"cloudFront"`
-	FrameCapture           bool                        `json:"frameCapture"`
-	ArchiveSource          string                      `json:"archiveSource"`
-	JobTemplate2160p       string                      `json:"jobTemplate_2160p"`
-	JobTemplate1080p       string                      `json:"jobTemplate_1080p"`
-	JobTemplate720p        string                      `json:"jobTemplate_720p"`
-	InputRotate            string                      `json:"inputRotate"`
-	AcceleratedTranscoding string                      `json:"acceleratedTranscoding"`
-	EnableSns              bool                        `json:"enableSns"`
-	EnableSqs              bool                        `json:"enableSqs"`
-	SrcVideo               string                      `json:"srcVideo"`
-	EnableMediaPackage     bool                        `json:"enableMediaPackage"`
-	SrcMediainfo           string                      `json:"srcMediainfo"`
-	EncodingJob            mediaconvert.CreateJobInput `json:"encodingJob"`
-	EncodeJobId            string                      `json:"encodeJobId"`
-	EncodingOutput         EventDetail                 `json:"encodingOutput"`
-	EndTime                time.Time                   `json:"endTime"`
+	PK                     string    `json:"pk"`
+	SK                     string    `json:"sk"`
+	StartTime              string    `json:"startTime"`
+	WorkflowTrigger        string    `json:"workflowTrigger"`
+	WorkflowStatus         string    `json:"workflowStatus"`
+	WorkflowName           string    `json:"workflowName"`
+	SrcBucket              string    `json:"srcBucket"`
+	DestBucket             string    `json:"destBucket"`
+	CloudFront             string    `json:"cloudFront"`
+	FrameCapture           bool      `json:"frameCapture"`
+	ArchiveSource          string    `json:"archiveSource"`
+	JobTemplate2160p       string    `json:"jobTemplate_2160p"`
+	JobTemplate1080p       string    `json:"jobTemplate_1080p"`
+	JobTemplate720p        string    `json:"jobTemplate_720p"`
+	InputRotate            string    `json:"inputRotate"`
+	AcceleratedTranscoding string    `json:"acceleratedTranscoding"`
+	EnableSns              bool      `json:"enableSns"`
+	EnableSqs              bool      `json:"enableSqs"`
+	SrcVideo               string    `json:"srcVideo"`
+	EnableMediaPackage     bool      `json:"enableMediaPackage"`
+	SrcMediainfo           string    `json:"srcMediainfo"`
+	EncodeJobId            string    `json:"encodeJobId"`
+	EndTime                time.Time `json:"endTime"`
 
 	// Output
 	HlsPlaylist            *string           `json:"hlsPlaylist"`
@@ -64,6 +60,7 @@ type VideoInformation struct {
 	ThumbNailsUrls         []*string         `json:"thumbNailsUrls"`
 	MediaPackageResourceId string            `json:"mediaPackageResourceId"`
 	EgressEndpoints        map[string]string `json:"egressEndpoints"`
+
 	// Basic Information
 	Title           *string    `json:"title"`
 	OriginalTitle   *string    `json:"originalTitle"`
@@ -90,12 +87,12 @@ type VideoInformation struct {
 	SubtitleLanguages *[]string `json:"subtitleLanguages"`
 
 	// Categorization
-	Genres            *[]string `json:"genres"`
-	Tags              *[]string `json:"tags"`
-	Themes            *[]string `json:"themes"`
-	SeriesInformation *string   `json:"seriesInformation"`
-	SequelPrequel     *string   `json:"sequelPrequel"`
-	SimilarMovies     *[]string `json:"similarMovies"`
+	Genres            *[]string          `json:"genres"`
+	Tags              *[]string          `json:"tags"`
+	Themes            *[]string          `json:"themes"`
+	SeriesInformation *SeriesInfo        `json:"seriesInformation"`
+	SequelPrequel     *SequelPrequelInfo `json:"sequelPrequel"`
+	SimilarMovies     *[]string          `json:"similarMovies"`
 
 	// Supplementary Content
 	PosterURLs       *[]string `json:"posterUrls"`
@@ -114,21 +111,19 @@ type VideoInformation struct {
 }
 
 type CastMember struct {
-	ActorName     string
-	CharacterName string
+	Name string `json:"name"`
+	Role string `json:"role"`
 }
 
-type EventDetail struct {
-	Timestamp          int64                `json:"timestamp"`
-	AccountId          string               `json:"accountId"`
-	Queue              string               `json:"queue"`
-	JobId              string               `json:"jobId"`
-	Status             string               `json:"status"`
-	UserMetadata       UserMetadata         `json:"userMetadata"`
-	OutputGroupDetails []*OutputGroupDetail `json:"outputGroupDetails"`
-	PaddingInserted    int64                `json:"paddingInserted"`
-	BlackVideoDetected int64                `json:"blackVideoDetected"`
-	Warnings           []*Warning           `json:"warnings"`
+type SeriesInfo struct {
+	Franchise          string `json:"franchise"`
+	ChronologicalOrder int    `json:"chronologicalOrder"`
+	ReleaseOrder       int    `json:"releaseOrder"`
+}
+
+type SequelPrequelInfo struct {
+	Prequels []string `json:"prequels"`
+	Sequels  []string `json:"sequels"`
 }
 
 type Warning struct {
@@ -278,7 +273,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

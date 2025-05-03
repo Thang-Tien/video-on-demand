@@ -43,7 +43,7 @@ func TestGetPresignedURL(t *testing.T) {
 			},
 			RequestContext: events.APIGatewayProxyRequestContext{
 				Authorizer: map[string]interface{}{
-					"principalId": "vodapi::User::\"ap-southeast-2_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613\"",
+					"principalId": "vodapi::User::\"ap-southeast-1_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613\"",
 				},
 			},
 		}
@@ -71,7 +71,7 @@ func TestGetPresignedURL(t *testing.T) {
 			},
 			RequestContext: events.APIGatewayProxyRequestContext{
 				Authorizer: map[string]interface{}{
-					"principalId": "vodapi::User::\"ap-southeast-2_opagHcslJ|\"",
+					"principalId": "vodapi::User::\"ap-southeast-1_opagHcslJ|\"",
 				},
 			},
 		}
@@ -97,7 +97,7 @@ func TestGetPresignedURL(t *testing.T) {
 			},
 			RequestContext: events.APIGatewayProxyRequestContext{
 				Authorizer: map[string]interface{}{
-					"principalId": "vodapi::User::\"ap-southeast-2_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613\"",
+					"principalId": "vodapi::User::\"ap-southeast-1_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613\"",
 				},
 			},
 		}
