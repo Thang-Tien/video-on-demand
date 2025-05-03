@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
+
 	"fmt"
 	"log"
 	"os"
@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/redis/go-redis/v9"
 )
 
 // RoomState represents the current state of a watch room
@@ -30,12 +29,12 @@ type RoomState struct {
 
 // Participant represents a user connected to a watch room
 type Participant struct {
-	PK           string    `json:"PK"` // PARTICIPANT#{participantId}
-	SK           string    `json:"SK"` // ROOM#{roomId}
-	RoomID       string    `json:"roomId"`
-	UserID       string    `json:"userId"`
-	ConnectionID string    `json:"connectionId"`
-	JoinedAt     time.Time `json:"joinedAt"`
+	PK           string    `dynamodbav:"PK"` // ROOM#{roomId}
+	SK           string    `dynamodbav:"SK"` // PARTICIPANT#{participantId}
+	RoomID       string    `dynamodbav:"roomId"`
+	UserID       string    `dynamodbav:"userId"`
+	ConnectionID string    `dynamodbav:"connectionId"`
+	JoinedAt     time.Time `dynamodbav:"joinedAt"`
 }
 
 // IDynamoDBClient interface for DynamoDB operations
@@ -44,16 +43,9 @@ type IDynamoDBClient interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 }
 
-// IRedisClient interface for Redis operations
-type IRedisClient interface {
-	Get(ctx context.Context, key string) *redis.StringCmd
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
-}
-
 // Handler is the WebSocket connect handler
 type Handler struct {
 	dynamoClient IDynamoDBClient
-	redisClient  IRedisClient
 }
 
 // Handle processes the WebSocket connect request
@@ -111,8 +103,8 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayWe
 
 	// Add participant to DynamoDB
 	participant := Participant{
-		PK:           fmt.Sprintf("PARTICIPANT#%s", userID),
-		SK:           fmt.Sprintf("ROOM#%s", roomID),
+		PK:           fmt.Sprintf("ROOM#%s", roomID),
+		SK:           fmt.Sprintf("PARTICIPANT#%s", userID),
 		RoomID:       roomID,
 		UserID:       userID,
 		ConnectionID: connectionID,
@@ -128,14 +120,19 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayWe
 		}, err
 	}
 
-	// Get or initialize room state in Valkey
-	err = h.initializeRoomState(ctx, roomID)
+	// Check if room state exists (but don't initialize it as it should have been created during room creation)
+	roomStateExists, err := h.checkRoomStateExists(ctx, roomID)
 	if err != nil {
-		fmt.Printf("Error initializing room state: %v\n", err)
+		fmt.Printf("Error checking room state: %v\n", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Body:       "Error initializing room state",
+			Body:       "Error checking room state",
 		}, err
+	}
+
+	if !roomStateExists {
+		fmt.Printf("Warning: Room state does not exist for room %s\n", roomID)
+		// We don't initialize it here anymore, just log a warning
 	}
 
 	fmt.Printf("Successfully added participant %s to room %s\n", userID, roomID)
@@ -168,6 +165,27 @@ func (h *Handler) checkRoomExists(ctx context.Context, roomKey string) (bool, er
 	return exists, nil
 }
 
+// checkRoomStateExists checks if the room state exists in DynamoDB
+func (h *Handler) checkRoomStateExists(ctx context.Context, roomID string) (bool, error) {
+	roomKey := fmt.Sprintf("ROOM#%s", roomID)
+	result, err := h.dynamoClient.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(os.Getenv("DynamoDBTable")),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: roomKey},
+			"SK": &types.AttributeValueMemberS{Value: "STATE"},
+		},
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("failed to query DynamoDB for room state: %w", err)
+	}
+
+	// Room state exists if the result item is not empty
+	exists := len(result.Item) > 0
+	fmt.Printf("Room state exists: %v\n", exists)
+	return exists, nil
+}
+
 // addParticipant adds a participant to the DynamoDB table
 func (h *Handler) addParticipant(ctx context.Context, participant Participant) error {
 	fmt.Printf("Adding participant: %+v\n", participant)
@@ -189,72 +207,6 @@ func (h *Handler) addParticipant(ctx context.Context, participant Participant) e
 	return nil
 }
 
-// initializeRoomState gets or initializes the room state in Valkey
-func (h *Handler) initializeRoomState(ctx context.Context, roomID string) error {
-	fmt.Printf("Initializing room state for room: %s\n", roomID)
-
-	// Check if room state exists in Valkey
-	roomStateKey := fmt.Sprintf("room:%s", roomID)
-	_, err := h.redisClient.Get(ctx, roomStateKey).Result()
-
-	// If room state doesn't exist or there was an error other than redis.Nil
-	if err != nil && err != redis.Nil {
-		return fmt.Errorf("error fetching room state from Valkey: %w", err)
-	}
-
-	// If room state doesn't exist, initialize it
-	if err == redis.Nil {
-		fmt.Println("Room state not found in Valkey, initializing new state")
-
-		// Get room details from DynamoDB to get the videoID
-		roomKey := fmt.Sprintf("ROOM#%s", roomID)
-		result, err := h.dynamoClient.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String(os.Getenv("DynamoDBTable")),
-			Key: map[string]types.AttributeValue{
-				"PK": &types.AttributeValueMemberS{Value: roomKey},
-				"SK": &types.AttributeValueMemberS{Value: "METADATA"},
-			},
-		})
-
-		if err != nil {
-			return fmt.Errorf("failed to get room details from DynamoDB: %w", err)
-		}
-
-		// Extract videoID from the room item
-		var videoID string
-		if v, ok := result.Item["videoId"]; ok {
-			if s, ok := v.(*types.AttributeValueMemberS); ok {
-				videoID = s.Value
-			}
-		}
-
-		// Initialize room state
-		roomState := RoomState{
-			RoomID:        roomID,
-			LastStartTime: time.Now(),
-			LastVideoTime: 0,
-			Status:        "paused",
-			VideoID:       videoID,
-		}
-
-		roomStateBytes, err := json.Marshal(roomState)
-		if err != nil {
-			return fmt.Errorf("failed to marshal room state: %w", err)
-		}
-
-		err = h.redisClient.Set(ctx, roomStateKey, string(roomStateBytes), 24*time.Hour).Err()
-		if err != nil {
-			return fmt.Errorf("failed to save room state to Valkey: %w", err)
-		}
-
-		fmt.Printf("Initialized new room state: %+v\n", roomState)
-	} else {
-		fmt.Println("Room state found in Valkey")
-	}
-
-	return nil
-}
-
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -264,29 +216,8 @@ func main() {
 	// Create DynamoDB client
 	dynamoClient := dynamodb.NewFromConfig(cfg)
 
-	// Create Redis client for Valkey
-	valkeyEndpoint := os.Getenv("RedisEndpoint")
-	if valkeyEndpoint == "" {
-		log.Fatalf("Error: RedisEndpoint environment variable not set")
-	}
-	
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: valkeyEndpoint,
-		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
-	})
-	
-	// Test connection
-	res, err := redisClient.Ping(context.TODO()).Result()
-	if err != nil {
-		log.Printf("Error connecting to Valkey: %v", err)
-	}
-	fmt.Printf("Connected to Valkey: %s\n", res)
-
 	handler := &Handler{
 		dynamoClient: dynamoClient,
-		redisClient:  redisClient,
 	}
 
 	lambda.Start(handler.HandleRequest)

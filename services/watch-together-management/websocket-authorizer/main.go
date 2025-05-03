@@ -159,7 +159,7 @@ func generateDenyPolicy(principalID string, resource string) events.APIGatewayCu
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("Failed to load AWS configuration: %v", err)
@@ -167,7 +167,7 @@ func main() {
 
 	cognitoClient := cognito.NewFromConfig(cfg)
 
-	userPoolID := "ap-southeast-2_o0aCq2NlJ"
+	userPoolID := "ap-southeast-1_o0aCq2NlJ"
 	handler := NewAuthorizerHandler(cognitoClient, userPoolID)
 
 	lambda.Start(handler.HandleRequest)
