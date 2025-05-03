@@ -117,8 +117,8 @@ func TestMediaConvert(t *testing.T) {
 			if err != nil {
 				t.Errorf("expect no error, got %v", err)
 			}
-			if *res != "https://ap-southeast-2.mediaconvert.amazonaws.com" {
-				t.Errorf("expect %s, got %s", "https://ap-southeast-2.mediaconvert.amazonaws.com", *res)
+			if *res != "https://ap-southeast-1.mediaconvert.amazonaws.com" {
+				t.Errorf("expect %s, got %s", "https://ap-southeast-1.mediaconvert.amazonaws.com", *res)
 			}
 
 		})
