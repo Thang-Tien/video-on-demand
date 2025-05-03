@@ -46,12 +46,12 @@ type VideoInformation struct {
 	SubtitleLanguages *[]string `json:"subtitleLanguages"`
 
 	// Categorization
-	Genres            *[]string `json:"genres"`
-	Tags              *[]string `json:"tags"`
-	Themes            *[]string `json:"themes"`
-	SeriesInformation *string   `json:"seriesInformation"`
-	SequelPrequel     *string   `json:"sequelPrequel"`
-	SimilarMovies     *[]string `json:"similarMovies"`
+	Genres            *[]string          `json:"genres"`
+	Tags              *[]string          `json:"tags"`
+	Themes            *[]string          `json:"themes"`
+	SeriesInformation *SeriesInfo        `json:"seriesInformation"`
+	SequelPrequel     *SequelPrequelInfo `json:"sequelPrequel"`
+	SimilarMovies     *[]string          `json:"similarMovies"`
 
 	// Supplementary Content
 	PosterURLs       *[]string `json:"posterUrls"`
@@ -70,8 +70,19 @@ type VideoInformation struct {
 }
 
 type CastMember struct {
-	ActorName     string
-	CharacterName string
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type SeriesInfo struct {
+	Franchise          string `json:"franchise"`
+	ChronologicalOrder int    `json:"chronologicalOrder"`
+	ReleaseOrder       int    `json:"releaseOrder"`
+}
+
+type SequelPrequelInfo struct {
+	Prequels []string `json:"prequels"`
+	Sequels  []string `json:"sequels"`
 }
 
 type DynamoDBClient interface {
@@ -193,7 +204,7 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)
