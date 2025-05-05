@@ -41,12 +41,15 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if !ok || fileName == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       "File name not provided in query parameters",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "File name not provided in query parameters",
 		}, nil
 	}
 
 	// Extract user ID from principalId
-	// The principalId is expected in format: vodapi::User::"ap-southeast-2_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
+	// The principalId is expected in format: vodapi::User::"ap-southeast-1_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
 	var userID string
 	if principalID, ok := request.RequestContext.Authorizer["principalId"].(string); ok {
 		// Find the last pipe character and extract the UUID part
@@ -62,7 +65,10 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if userID == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       "Could not extract user ID from token",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Could not extract user ID from token",
 		}, nil
 	}
 
@@ -87,7 +93,10 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 		log.Printf("Error creating presigned URL: %v", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       "Failed to generate upload URL: " + err.Error(),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Failed to generate upload URL: " + err.Error(),
 		}, nil
 	}
 
@@ -100,14 +109,18 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       "Failed to generate response",
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Failed to generate response",
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":                "application/json",
+			"Access-Control-Allow-Origin": "*",
 		},
 		Body: string(responseJSON),
 	}, nil
@@ -116,7 +129,7 @@ func (h *GetPresignedURLHandler) HandleRequest(request events.APIGatewayProxyReq
 func main() {
 	// Create an S3 client
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

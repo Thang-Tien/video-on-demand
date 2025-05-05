@@ -46,12 +46,12 @@ type VideoInformation struct {
 	SubtitleLanguages *[]string `json:"subtitleLanguages"`
 
 	// Categorization
-	Genres            *[]string `json:"genres"`
-	Tags              *[]string `json:"tags"`
-	Themes            *[]string `json:"themes"`
-	SeriesInformation *string   `json:"seriesInformation"`
-	SequelPrequel     *string   `json:"sequelPrequel"`
-	SimilarMovies     *[]string `json:"similarMovies"`
+	Genres            *[]string          `json:"genres"`
+	Tags              *[]string          `json:"tags"`
+	Themes            *[]string          `json:"themes"`
+	SeriesInformation *SeriesInfo        `json:"seriesInformation"`
+	SequelPrequel     *SequelPrequelInfo `json:"sequelPrequel"`
+	SimilarMovies     *[]string          `json:"similarMovies"`
 
 	// Supplementary Content
 	PosterURLs       *[]string `json:"posterUrls"`
@@ -66,12 +66,22 @@ type VideoInformation struct {
 	CriticRatings        *map[string]float64 `json:"criticRatings"`
 	UserRating           *float64            `json:"userRating"`
 	BoxOfficePerformance *float64            `json:"boxOfficePerformance"`
-	Views                *int                `json:"views"`
 }
 
 type CastMember struct {
-	ActorName     string
-	CharacterName string
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type SeriesInfo struct {
+	Franchise          string `json:"franchise"`
+	ChronologicalOrder int    `json:"chronologicalOrder"`
+	ReleaseOrder       int    `json:"releaseOrder"`
+}
+
+type SequelPrequelInfo struct {
+	Prequels []string `json:"prequels"`
+	Sequels  []string `json:"sequels"`
 }
 
 type DynamoDBClient interface {
@@ -92,7 +102,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       fmt.Sprintf("Invalid request body: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Invalid request body: %v", err),
 		}, nil
 	}
 
@@ -101,7 +114,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to marshal request: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to marshal request: %v", err),
 		}, nil
 	}
 
@@ -117,7 +133,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to build expression: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to build expression: %v", err),
 		}, nil
 	}
 
@@ -140,7 +159,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to update item in DynamoDB: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to update item in DynamoDB: %v", err),
 		}, nil
 	}
 
@@ -151,7 +173,10 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to unmarshal updated item: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to unmarshal updated item: %v", err),
 		}, nil
 	}
 
@@ -159,19 +184,26 @@ func (h *Handler) HandleRequest(request events.APIGatewayProxyRequest) (events.A
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to marshal updated item to JSON: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to marshal updated item to JSON: %v", err),
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       string(updatedVideoInfoJSON),
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+			"Content-Type":                "application/json",
+		},
+		Body: string(updatedVideoInfoJSON),
 	}, nil
 }
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

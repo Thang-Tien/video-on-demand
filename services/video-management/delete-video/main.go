@@ -40,18 +40,24 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusInternalServerError,
-			Body:       fmt.Sprintf("Failed to delete item: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: fmt.Sprintf("Failed to delete item: %v", err),
 		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}, nil
 }
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

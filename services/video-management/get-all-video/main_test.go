@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"testing"
 
@@ -16,12 +17,12 @@ type DynamoDBClientMock struct {
 	mock.Mock
 }
 
-func (m *DynamoDBClientMock) Scan(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
+func (m *DynamoDBClientMock) Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
 	args := m.Called(ctx, params)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*dynamodb.ScanOutput), args.Error(1)
+	return args.Get(0).(*dynamodb.QueryOutput), args.Error(1)
 }
 
 func TestGetAllVideo(t *testing.T) {
@@ -35,7 +36,7 @@ func TestGetAllVideo(t *testing.T) {
 
 		event := events.APIGatewayProxyRequest{}
 
-		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Return(&dynamodb.ScanOutput{
+		dynamoDBClient.On("Query", mock.Anything, mock.Anything).Return(&dynamodb.QueryOutput{
 			Items: []map[string]types.AttributeValue{
 				{
 					"PK": &types.AttributeValueMemberS{Value: "VIDEO#123"},
@@ -67,7 +68,7 @@ func TestGetAllVideo(t *testing.T) {
 			},
 		}
 
-		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Return(&dynamodb.ScanOutput{
+		dynamoDBClient.On("Query", mock.Anything, mock.Anything).Return(&dynamodb.QueryOutput{
 			Items: []map[string]types.AttributeValue{
 				{
 					"PK": &types.AttributeValueMemberS{Value: "VIDEO#123"},
@@ -92,11 +93,11 @@ func TestGetAllVideo(t *testing.T) {
 		event := events.APIGatewayProxyRequest{
 			QueryStringParameters: map[string]string{
 				"pageNumber": "3",
-				"nextToken":  "LUskRG2xm2xv7IHa8EcqhEiB9d8wIEfEsk2w7mz1SaT5100l5LL2kN8JiLR_nuqrLEf5eMSqI5hO0NDDUNfDg_z0Ygn3-sDlLS5Rdiw_mRatSyh5IdCafUiBJaVGJbcbUhOXYSgVI141kv21AYvwlh_yPcRlfhJOLA==",
+				"nextToken":  "z6oWbz7VJKtpQJ9-J0hmMjS1V4jjeLWeFNWR0N7zHekbbnviX_dx_0vuHUCInQEvDLCGt59XGjj3_Hegx6SUBBsILc5gTvEsd625oSyjHrH6ELfYlEdTL0PYWBwYW3oT7giEDvIxJHiPkXE4qvMV_tee3OQIwbBF3w==",
 			},
 		}
 
-		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Once().Return(&dynamodb.ScanOutput{
+		dynamoDBClient.On("Query", mock.Anything, mock.Anything).Once().Return(&dynamodb.QueryOutput{
 			LastEvaluatedKey: map[string]types.AttributeValue{
 				"PK": &types.AttributeValueMemberS{Value: "VIDEO#123"},
 				"SK": &types.AttributeValueMemberS{Value: "METADATA"},
@@ -109,7 +110,7 @@ func TestGetAllVideo(t *testing.T) {
 			},
 		}, nil)
 
-		dynamoDBClient.On("Scan", mock.Anything, mock.Anything).Once().Return(&dynamodb.ScanOutput{
+		dynamoDBClient.On("Query", mock.Anything, mock.Anything).Once().Return(&dynamodb.QueryOutput{
 			Items: []map[string]types.AttributeValue{
 				{
 					"PK": &types.AttributeValueMemberS{Value: "VIDEO#456"},
@@ -123,6 +124,6 @@ func TestGetAllVideo(t *testing.T) {
 			t.Errorf("expect no error, got %v", err)
 		}
 		assert.Equal(t, 200, res.StatusCode)
-		
+		log.Printf("Response: %s", res.Body)
 	})
 }

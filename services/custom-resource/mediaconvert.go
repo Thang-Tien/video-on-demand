@@ -183,7 +183,7 @@ func (m *MediaConvertCustomResource) GetEndpoint() (*string, error) {
 	// }
 
 	// return res.Endpoints[0].Url, nil
-	return aws.String("https://ap-southeast-2.mediaconvert.amazonaws.com"), nil
+	return aws.String("https://ap-southeast-1.mediaconvert.amazonaws.com"), nil
 }
 
 type MediaConvertConfig struct {
@@ -197,7 +197,7 @@ type MediaConvertConfig struct {
 
 func (m *MediaConvertCustomResource) GetTemplateFromS3(path string) ([]byte, error) {
 	s3Input := &s3.GetObjectInput{
-		Bucket: aws.String("vod-templates-and-presets"),
+		Bucket: aws.String("vod-templates-and-presets-as-2"),
 		Key:    aws.String(path),
 	}
 
