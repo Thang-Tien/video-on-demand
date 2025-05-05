@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 )
 
@@ -24,18 +25,28 @@ type CreateRoomRequest struct {
 	VideoId         string `json:"videoId"`
 	MaxParticipants int    `json:"maxParticipants"`
 }
-
 type RoomData struct {
-	PK              string    `json:"PK"`
-	SK              string    `json:"SK"`
-	RoomName        string    `json:"roomName"`
-	CreatedBy       string    `json:"createdBy"`
-	CreatedAt       time.Time `json:"createdAt"`
-	VideoId         string    `json:"videoId"`
-	MaxParticipants int       `json:"maxParticipants"`
-	Status          string    `json:"status"`
-	ExpiresAt       time.Time `json:"expiresAt"`
-	InviteLink      string    `json:"inviteLink"`
+	PK              string    `json:"PK" dynamodbav:"PK"`
+	SK              string    `json:"SK" dynamodbav:"SK"`
+	RoomName        string    `json:"roomName" dynamodbav:"roomName"`
+	CreatedBy       string    `json:"createdBy" dynamodbav:"createdBy"`
+	CreatedAt       time.Time `json:"createdAt" dynamodbav:"createdAt"`
+	VideoId         string    `json:"videoId" dynamodbav:"videoId"`
+	MaxParticipants int       `json:"maxParticipants" dynamodbav:"maxParticipants"`
+	Status          string    `json:"status" dynamodbav:"status"`
+	ExpiresAt       time.Time `json:"expiresAt" dynamodbav:"expiresAt"`
+	InviteLink      string    `json:"inviteLink" dynamodbav:"inviteLink"`
+}
+
+// RoomState represents the current state of a watch room
+type RoomState struct {
+	PK            string    `json:"PK" dynamodbav:"PK"`
+	SK            string    `json:"SK" dynamodbav:"SK"`
+	RoomID        string    `json:"roomId" dynamodbav:"roomId"`
+	LastStartTime time.Time `json:"lastStartTime" dynamodbav:"lastStartTime"`
+	LastVideoTime float64   `json:"lastVideoTime" dynamodbav:"lastVideoTime"`
+	Status        string    `json:"status" dynamodbav:"status"` // "playing", "paused"
+	VideoID       string    `json:"videoId" dynamodbav:"videoId"`
 }
 
 type Response struct {
@@ -48,8 +59,19 @@ type Handler struct {
 	DynamoDBClient DynamoDBClient
 }
 
+// Participant represents a user connected to a watch room
+type Participant struct {
+	PK           string    `dynamodbav:"PK"` // ROOM#{roomId}
+	SK           string    `dynamodbav:"SK"` // PARTICIPANT#{participantId}
+	RoomID       string    `dynamodbav:"roomId"`
+	UserID       string    `dynamodbav:"userId"`
+	ConnectionID string    `dynamodbav:"connectionId"`
+	JoinedAt     time.Time `dynamodbav:"joinedAt"`
+}
+
 type DynamoDBClient interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
 func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -57,7 +79,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	log.Printf("Request: %s", requestJSON)
 
 	// Extract user ID from principalId
-	// The principalId is expected in format: vodapi::User::"ap-southeast-2_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
+	// The principalId is expected in format: vodapi::User::"ap-southeast-1_opagHcslJ|996ev488-21f1-7gc6-da0f-28ag6acb3613"
 	var userId string
 	if principalID, ok := request.RequestContext.Authorizer["principalId"].(string); ok {
 		// Find the last pipe character and extract the UUID part
@@ -87,6 +109,24 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       fmt.Sprintf("Invalid request: %v", err),
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+		}, nil
+	}
+
+	// Check if the video exists
+	videoResult, err := h.DynamoDBClient.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(os.Getenv("DynamoDBTable")),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "VIDEO#" + createRequest.VideoId},
+			"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+		},
+	})
+	if err != nil || videoResult.Item == nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       fmt.Sprintf("Video with ID %s not found", createRequest.VideoId),
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin": "*",
 			},
@@ -133,19 +173,22 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 		}, nil
 	}
 
-	// Create room participant entry (host)
-	participantItem := map[string]interface{}{
-		"PK":       "ROOM#" + roomId,
-		"SK":       "PARTICIPANT#" + userId,
-		"joinedAt": time.Now().Format(time.RFC3339),
-		"role":     "HOST",
+	// Initialize room state
+	roomState := RoomState{
+		PK:            "ROOM#" + roomId,
+		SK:            "STATE",
+		RoomID:        roomId,
+		LastStartTime: time.Now(),
+		LastVideoTime: 0,
+		Status:        "paused",
+		VideoID:       createRequest.VideoId,
 	}
 
-	av, err = attributevalue.MarshalMap(participantItem)
+	stateAV, err := attributevalue.MarshalMap(roomState)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Body:       fmt.Sprintf("Error creating room participant: %v", err),
+			Body:       fmt.Sprintf("Error creating room state: %v", err),
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin": "*",
 			},
@@ -154,12 +197,12 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 	_, err = h.DynamoDBClient.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
-		Item:      av,
+		Item:      stateAV,
 	})
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 500,
-			Body:       fmt.Sprintf("Error saving participant to database: %v", err),
+			Body:       fmt.Sprintf("Error saving room state to database: %v", err),
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin": "*",
 			},
@@ -186,7 +229,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 
 func main() {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("ap-southeast-2"),
+		config.WithRegion("ap-southeast-1"),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config: %v", err)

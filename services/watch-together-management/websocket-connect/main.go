@@ -121,7 +121,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayWe
 	}
 
 	// Check if room state exists (but don't initialize it as it should have been created during room creation)
-	roomStateExists, err := h.checkRoomStateExists(ctx, roomID)
+	roomState, err := h.checkRoomStateExists(ctx, roomID)
 	if err != nil {
 		fmt.Printf("Error checking room state: %v\n", err)
 		return events.APIGatewayProxyResponse{
@@ -130,16 +130,15 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayWe
 		}, err
 	}
 
-	if !roomStateExists {
-		fmt.Printf("Warning: Room state does not exist for room %s\n", roomID)
-		// We don't initialize it here anymore, just log a warning
-	}
-
 	fmt.Printf("Successfully added participant %s to room %s\n", userID, roomID)
+
+	roomStateJSON, _ := json.Marshal(roomState)
+	fmt.Printf("Room state: %s\n", roomStateJSON)
+
 	// If successful, return 200
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       "Connected to room successfully",
+		Body:       "Connected to room",
 	}, nil
 }
 
@@ -166,7 +165,7 @@ func (h *Handler) checkRoomExists(ctx context.Context, roomKey string) (bool, er
 }
 
 // checkRoomStateExists checks if the room state exists in DynamoDB
-func (h *Handler) checkRoomStateExists(ctx context.Context, roomID string) (bool, error) {
+func (h *Handler) checkRoomStateExists(ctx context.Context, roomID string) (*RoomState, error) {
 	roomKey := fmt.Sprintf("ROOM#%s", roomID)
 	result, err := h.dynamoClient.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
@@ -177,13 +176,24 @@ func (h *Handler) checkRoomStateExists(ctx context.Context, roomID string) (bool
 	})
 
 	if err != nil {
-		return false, fmt.Errorf("failed to query DynamoDB for room state: %w", err)
+		return nil, fmt.Errorf("failed to query DynamoDB for room state: %w", err)
 	}
 
 	// Room state exists if the result item is not empty
-	exists := len(result.Item) > 0
-	fmt.Printf("Room state exists: %v\n", exists)
-	return exists, nil
+	if len(result.Item) <= 0 {
+		return nil, fmt.Errorf("room state not found for room %s", roomID)
+
+	}
+	var roomState RoomState
+	err = attributevalue.UnmarshalMap(result.Item, &roomState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal room state: %w", err)
+	}
+
+	fmt.Printf("Room state exists: %v\n", roomState)
+
+	return &roomState, nil
+
 }
 
 // addParticipant adds a participant to the DynamoDB table

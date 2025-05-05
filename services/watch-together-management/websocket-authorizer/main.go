@@ -62,8 +62,12 @@ func (h *AuthorizerHandler) HandleRequest(ctx context.Context, request events.AP
 	// Extract token from the request
 	token := extractToken(request.Headers["Authorization"])
 	if token == "" {
-		log.Println("Empty authorization token")
-		return generateDenyPolicy("user", request.MethodArn), nil
+		// If token is not in the header, check the query parameters
+		token = request.QueryStringParameters["token"]
+		if token == "" {
+			log.Println("Empty authorization token")
+			return generateDenyPolicy("user", request.MethodArn), nil
+		}
 	}
 
 	// Validate token with Cognito

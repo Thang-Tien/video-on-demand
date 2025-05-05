@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -141,7 +138,6 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayWe
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       "Message processed successfully",
 	}, nil
 }
 
@@ -207,7 +203,7 @@ func (h *Handler) updateRoomState(ctx context.Context, event VideoEvent) error {
 	// Add required DynamoDB keys
 	updatedRoomState["PK"] = &types.AttributeValueMemberS{Value: fmt.Sprintf("ROOM#%s", roomState.RoomID)}
 	updatedRoomState["SK"] = &types.AttributeValueMemberS{Value: "STATE"}
-	
+
 	_, err = h.DynamoClient.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Item:      updatedRoomState,
@@ -303,24 +299,6 @@ func main() {
 	apiGatewayClient := apigatewaymanagementapi.NewFromConfig(cfg, func(o *apigatewaymanagementapi.Options) {
 		o.BaseEndpoint = aws.String(endpoint)
 	})
-
-	// Check internet connectivity
-	log.Println("Testing internet connectivity...")
-	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
-	}
-	resp, err := httpClient.Get("https://checkip.amazonaws.com")
-	if err != nil {
-		log.Printf("Internet connectivity test failed: %v", err)
-	} else {
-		defer resp.Body.Close()
-		ipBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading IP response: %v", err)
-		} else {
-			log.Printf("Internet connectivity test passed. External IP: %s", strings.TrimSpace(string(ipBytes)))
-		}
-	}
 
 	handler := Handler{
 		DynamoClient:     dynamoClient,
