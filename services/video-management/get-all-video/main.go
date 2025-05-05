@@ -110,7 +110,7 @@ type VideoInformation struct {
 	CriticRatings        *map[string]float64 `json:"criticRatings"`
 	UserRating           *float64            `json:"userRating"`
 	BoxOfficePerformance *float64            `json:"boxOfficePerformance"`
-	Views                *int                `json:"views"`
+	Views                int                 `json:"views"`
 }
 
 type CastMember struct {
