@@ -252,7 +252,7 @@ func (h *Handler) updateDynamoDBViewCount(ctx context.Context, guid string, view
 
 	// Create a period entry for ranking purposes
 	periodKey := fmt.Sprintf("PERIOD#%s", currentMonth)
-	videoKey := fmt.Sprintf("VIEW#%s", guid)
+	videoKey := fmt.Sprintf("VIEWS#%s", guid)
 
 	rankInput := &dynamodb.UpdateItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
