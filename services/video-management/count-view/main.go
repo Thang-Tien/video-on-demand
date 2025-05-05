@@ -250,20 +250,20 @@ func (h *Handler) updateDynamoDBViewCount(ctx context.Context, guid string, view
 		}
 	}
 
-	// Create a period entry for ranking purposes (using padding for sorting)
-	paddedCount := fmt.Sprintf("%06d", monthlyViews)
+	// Create a period entry for ranking purposes
 	periodKey := fmt.Sprintf("PERIOD#%s", currentMonth)
-	rankKey := fmt.Sprintf("VIEWS#%s#VIDEO#%s", paddedCount, guid)
+	videoKey := fmt.Sprintf("VIEW#%s", guid)
 
 	rankInput := &dynamodb.UpdateItemInput{
 		TableName: aws.String(os.Getenv("DynamoDBTable")),
 		Key: map[string]types.AttributeValue{
 			"PK": &types.AttributeValueMemberS{Value: periodKey},
-			"SK": &types.AttributeValueMemberS{Value: rankKey},
+			"SK": &types.AttributeValueMemberS{Value: videoKey},
 		},
-		UpdateExpression: aws.String("SET videoId = :videoId"),
+		UpdateExpression: aws.String("SET videoId = :videoId, viewCount = :viewCount"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":videoId": &types.AttributeValueMemberS{Value: guid},
+			":videoId":   &types.AttributeValueMemberS{Value: guid},
+			":viewCount": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", monthlyViews)},
 		},
 	}
 
