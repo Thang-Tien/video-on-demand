@@ -19,9 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-type VideoInformation struct {
-	PK                     string    `json:"pk"`
-	SK                     string    `json:"sk"`
+type VideoInformationWithViews struct {
+	PK                     string    `json:"PK"`
+	SK                     string    `json:"SK"`
 	StartTime              string    `json:"startTime"`
 	WorkflowTrigger        string    `json:"workflowTrigger"`
 	WorkflowStatus         string    `json:"workflowStatus"`
@@ -108,7 +108,7 @@ type VideoInformation struct {
 	CriticRatings        *map[string]float64 `json:"criticRatings"`
 	UserRating           *float64            `json:"userRating"`
 	BoxOfficePerformance *float64            `json:"boxOfficePerformance"`
-	Views                *int                `json:"views"`
+	Views                int                 `json:"views"`
 }
 
 type CastMember struct {
@@ -128,20 +128,15 @@ type SequelPrequelInfo struct {
 }
 
 type Views struct {
-	PK      string `json:"PK"`
-	SK      string `json:"SK"`
-	VideoID string `json:"videoId"`
-}
-
-// New response structure that includes full video details
-type VideoWithViews struct {
-	Views       Views            `json:"views"`
-	Information VideoInformation `json:"information"`
+	PK        string `json:"PK"`
+	SK        string `json:"SK"`
+	VideoID   string `json:"videoId"`
+	ViewCount int    `json:"viewCount"`
 }
 
 type Response struct {
-	Videos []VideoWithViews `json:"videos"`
-	Count  int              `json:"count"`
+	Videos []VideoInformationWithViews `json:"videos"`
+	Count  int                         `json:"count"`
 }
 
 // Modified DynamoDBClient interface to include GetItem for fetching individual videos
@@ -203,7 +198,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 	}
 
 	// Get detailed information for each video
-	videosWithDetails := []VideoWithViews{}
+	videosWithViews := []VideoInformationWithViews{}
 
 	for _, view := range views {
 		// Extract videoId from the view item
@@ -216,17 +211,14 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 			continue
 		}
 
-		// Add to result list
-		videosWithDetails = append(videosWithDetails, VideoWithViews{
-			Views:       view,
-			Information: videoInfo,
-		})
+		videoInfo.Views = view.ViewCount
+		videosWithViews = append(videosWithViews, videoInfo)
 	}
 
 	// Prepare the enhanced response
 	response := Response{
-		Videos: videosWithDetails,
-		Count:  len(videosWithDetails),
+		Videos: videosWithViews,
+		Count:  len(videosWithViews),
 	}
 
 	// Convert response to JSON
@@ -249,8 +241,8 @@ func (h *Handler) HandleRequest(ctx context.Context, request events.APIGatewayPr
 }
 
 // Helper function to get full video information for a given videoId
-func (h *Handler) getVideoInformation(ctx context.Context, videoID string) (VideoInformation, error) {
-	var videoInfo VideoInformation
+func (h *Handler) getVideoInformation(ctx context.Context, videoID string) (VideoInformationWithViews, error) {
+	var videoInfo VideoInformationWithViews
 
 	// First get the video information
 	videoResult, err := h.DynamoDBClient.GetItem(ctx, &dynamodb.GetItemInput{
