@@ -24,6 +24,7 @@ type Comment struct {
 	VideoID    string    `json:"videoId" dynamodbav:"videoId"`
 	CommentID  string    `json:"commentId" dynamodbav:"commentId"`
 	UserID     string    `json:"userId" dynamodbav:"userId"`
+	UserName   string    `json:"userName" dynamodbav:"userName"`
 	Content    string    `json:"content" dynamodbav:"content"`
 	Timestamp  time.Time `json:"timestamp" dynamodbav:"timestamp"`
 	LikeCount  int       `json:"likeCount" dynamodbav:"likeCount"`
@@ -45,6 +46,7 @@ type CommentResponse struct {
 	CommentID  string    `json:"commentId"`
 	VideoID    string    `json:"videoId"`
 	UserID     string    `json:"userId"`
+	UserName   string    `json:"userName"`
 	Content    string    `json:"content"`
 	Timestamp  time.Time `json:"timestamp"`
 	LikeCount  int       `json:"likeCount"`
@@ -84,6 +86,7 @@ func commentToResponse(comment Comment) CommentResponse {
 		CommentID:  commentID,
 		VideoID:    comment.VideoID,
 		UserID:     comment.UserID,
+		UserName:   comment.UserName,
 		Content:    comment.Content,
 		Timestamp:  comment.Timestamp,
 		LikeCount:  comment.LikeCount,
@@ -94,7 +97,7 @@ func commentToResponse(comment Comment) CommentResponse {
 
 func (h *CommentHandler) GetComments(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	requestJSON, _ := json.Marshal(request)
-	log.Printf("Delete comment request: %s", requestJSON)
+	log.Printf("Get comment request: %s", requestJSON)
 
 	// Get video ID from path parameter
 	videoID := request.PathParameters["videoId"]

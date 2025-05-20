@@ -151,6 +151,45 @@ func (h *CommentHandler) DeleteComment(ctx context.Context, request events.APIGa
 		}, nil
 	}
 
+	// If this was a reply to another comment, decrement the parent's reply count
+	if comment.ParentID != nil && *comment.ParentID != "" {
+		// First, find the parent comment
+		queryParentResult, err := h.DynamoDBClient.Query(ctx, &dynamodb.QueryInput{
+			TableName:              aws.String(h.CommentTable),
+			KeyConditionExpression: aws.String("PK = :pk AND SK = :sk"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":pk": &types.AttributeValueMemberS{Value: "VIDEO#" + videoID},
+				":sk": &types.AttributeValueMemberS{Value: "COMMENT#" + *comment.ParentID},
+			},
+		})
+
+		if err == nil && len(queryParentResult.Items) > 0 {
+			var parentComment Comment
+			if err = attributevalue.UnmarshalMap(queryParentResult.Items[0], &parentComment); err == nil {
+				// Update the parent comment's reply count
+				_, err = h.DynamoDBClient.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+					TableName: aws.String(h.CommentTable),
+					Key: map[string]types.AttributeValue{
+						"PK": &types.AttributeValueMemberS{Value: parentComment.PK},
+						"SK": &types.AttributeValueMemberS{Value: parentComment.SK},
+					},
+					UpdateExpression:    aws.String("SET replyCount = if_not_exists(replyCount, :zero) - :one"),
+					ConditionExpression: aws.String("replyCount > :zero"),
+					ExpressionAttributeValues: map[string]types.AttributeValue{
+						":zero": &types.AttributeValueMemberN{Value: "0"},
+						":one":  &types.AttributeValueMemberN{Value: "1"},
+					},
+				})
+				if err != nil {
+					log.Printf("Error updating parent comment reply count: %v", err)
+					// Continue execution even if updating parent fails
+				}
+			}
+		}
+
+
+	}
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Headers: map[string]string{

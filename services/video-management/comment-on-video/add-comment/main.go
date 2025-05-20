@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
@@ -26,6 +28,7 @@ type Comment struct {
 	VideoID    string    `json:"videoId" dynamodbav:"videoId"`
 	CommentID  string    `json:"commentId" dynamodbav:"commentId"`
 	UserID     string    `json:"userId" dynamodbav:"userId"`
+	UserName   string    `json:"userName" dynamodbav:"userName"`
 	Content    string    `json:"content" dynamodbav:"content"`
 	Timestamp  time.Time `json:"timestamp" dynamodbav:"timestamp"`
 	LikeCount  int       `json:"likeCount" dynamodbav:"likeCount"`
@@ -36,6 +39,7 @@ type Comment struct {
 // CommentRequest is the structure for incoming comment requests
 type CommentRequest struct {
 	VideoID  string  `json:"videoId"`
+	UserName string  `json:"userName"`
 	Content  string  `json:"content"`
 	ParentID *string `json:"parentId,omitempty"`
 }
@@ -47,6 +51,7 @@ type CommentResponse struct {
 	CommentID  string    `json:"commentId"`
 	VideoID    string    `json:"videoId"`
 	UserID     string    `json:"userId"`
+	UserName   string    `json:"userName"`
 	Content    string    `json:"content"`
 	Timestamp  time.Time `json:"timestamp"`
 	LikeCount  int       `json:"likeCount"`
@@ -62,9 +67,14 @@ type DynamoDBAPI interface {
 	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
 }
 
+type CognitoClient interface {
+	GetUser(ctx context.Context, params *cognitoidentityprovider.GetUserInput, optFns ...func(*cognitoidentityprovider.Options)) (*cognitoidentityprovider.GetUserOutput, error)
+}
+
 // CommentHandler contains all the dependencies for comment operations
 type CommentHandler struct {
 	DynamoDBClient DynamoDBAPI
+	CognitoClient  CognitoClient
 	CommentTable   string
 }
 
@@ -86,6 +96,7 @@ func commentToResponse(comment Comment) CommentResponse {
 		CommentID:  commentID,
 		VideoID:    comment.VideoID,
 		UserID:     comment.UserID,
+		UserName:   comment.UserName,
 		Content:    comment.Content,
 		Timestamp:  comment.Timestamp,
 		LikeCount:  comment.LikeCount,
@@ -97,7 +108,7 @@ func commentToResponse(comment Comment) CommentResponse {
 // AddComment handles adding a new comment to a video
 func (h *CommentHandler) AddComment(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	requestJSON, _ := json.Marshal(request)
-	log.Printf("Delete comment request: %s", requestJSON)
+	log.Printf("Add comment request: %s", requestJSON)
 
 	// Parse request body
 	var commentRequest CommentRequest
@@ -136,6 +147,50 @@ func (h *CommentHandler) AddComment(ctx context.Context, request events.APIGatew
 		}, nil
 	}
 
+	// Extract the access token from the Authorization header
+	accessToken := ""
+	if authHeader, ok := request.Headers["Authorization"]; ok {
+		// The Authorization header typically has format "Bearer <token>"
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			accessToken = authHeader[7:]
+		}
+	}
+
+	// If the access token is not provided, return unauthorized
+	if accessToken == "" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusUnauthorized,
+			Body:       "Access token not provided",
+		}, nil
+	}
+
+	getUserParams := &cognitoidentityprovider.GetUserInput{
+		AccessToken: aws.String(accessToken),
+	}
+
+	// Get user details from Cognito using the identity ID
+	userInfo, err := h.CognitoClient.GetUser(ctx, getUserParams)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Error retrieving user information: %v", err),
+		}, nil
+	}
+
+	// Log the user information obtained from Cognito
+	log.Printf("Retrieved user information: %v", userInfo)
+
+	// Ensure we have a valid username
+	if userInfo == nil || userInfo.Username == nil || *userInfo.Username == "" {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+			Body: "Invalid user information received from Cognito",
+		}, nil
+	}
+
 	// Create a new comment
 	commentUUID := uuid.New().String()
 	timestamp := time.Now()
@@ -146,6 +201,7 @@ func (h *CommentHandler) AddComment(ctx context.Context, request events.APIGatew
 		VideoID:    commentRequest.VideoID,
 		CommentID:  commentUUID,
 		UserID:     userID,
+		UserName:   *userInfo.Username,
 		Content:    commentRequest.Content,
 		Timestamp:  timestamp,
 		LikeCount:  0,
@@ -206,7 +262,7 @@ func (h *CommentHandler) AddComment(ctx context.Context, request events.APIGatew
 				Headers: map[string]string{
 					"Access-Control-Allow-Origin": "*",
 				},
-				Body: "Failed to update parent comment's reply count",
+				Body: fmt.Sprintf("Failed to update parent comment's reply count: %v", err),
 			}, nil
 		}
 	}
@@ -248,10 +304,13 @@ func main() {
 	// Create DynamoDB client
 	dynamoClient := dynamodb.NewFromConfig(cfg)
 
+	CognitoClient := cognitoidentityprovider.NewFromConfig(cfg)
+
 	// Create handler with dependencies
 	handler := &CommentHandler{
 		DynamoDBClient: dynamoClient,
 		CommentTable:   os.Getenv("DynamoDBTable"),
+		CognitoClient:  CognitoClient,
 	}
 
 	lambda.Start(handler.AddComment)
