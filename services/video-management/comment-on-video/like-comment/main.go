@@ -49,7 +49,7 @@ type CommentHandler struct {
 // LikeComment handles liking/unliking a comment
 func (h *CommentHandler) LikeComment(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	requestJSON, _ := json.Marshal(request)
-	log.Printf("Delete comment request: %s", requestJSON)
+	log.Printf("Like comment request: %s", requestJSON)
 
 	videoID := request.PathParameters["videoId"]
 	rawCommentID := request.PathParameters["commentId"]
