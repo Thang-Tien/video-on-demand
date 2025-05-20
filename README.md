@@ -6,7 +6,7 @@ This is a comprehensive Video-on-Demand (VOD) serverless service built on AWS th
 ## Architecture
 
 ### System Components
-![VOD Architecture Diagram](docs/images/architecture.png)
+![VOD Architecture Diagram](https://docs.aws.amazon.com/images/solutions/latest/video-on-demand-on-aws/images/video-on-demand-architecture.png)
 
 The system follows a event-driven microservices architecture with the following components:
 
